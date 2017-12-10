@@ -21,6 +21,21 @@ namespace instant {
         return found->second;
     }
 
+    template <typename Key, typename T>
+    inline auto& find_value(std::unordered_map<Key, T>& m, Key const& key) {
+        std::cout << key << std::endl;
+        auto found = m.find(key);
+        if(found == m.end()) {
+            throw "not found";
+        }
+        return found->second;
+    }
+
+    inline auto extract_dims(mkldnn::memory const& m) {
+        auto const& d = m.get_primitive_desc().desc().data;
+        return std::vector<int>(d.dims, d.dims + d.ndims);
+    }
+
     inline auto make_conv_output_tz(mkldnn::memory::dims const& input_tz,
                                     mkldnn::memory::dims const& weight_tz,
                                     mkldnn::memory::dims const& stride,
@@ -41,10 +56,15 @@ namespace instant {
            calc_length(iw, kw, padding_l[1], padding_r[1], stride[1])});
     }
 
-    inline auto make_conv_primitive(
-      std::unordered_map<std::string, instant::array> const& parameter_table,
-      std::unordered_map<std::string, instant::array> const& variable_table,
-      onnx::NodeProto const& node, mkldnn::engine const& engine) {
+    inline auto
+    make_conv_primitive(std::unordered_map<std::string, mkldnn::memory> const&
+                          parameter_memory_table,
+                        std::unordered_map<std::string, mkldnn::memory> const&
+                          variable_memory_table,
+                        onnx::NodeProto const& node,
+                        mkldnn::engine const& engine) {
+
+        // Load attributes
         using namespace std::literals::string_literals;
 
         auto attribute_table = instant::make_attribute_table(node);
@@ -63,42 +83,21 @@ namespace instant {
         auto padding_r = mkldnn::memory::dims(pads_attr.ints().begin() + 2,
                                               pads_attr.ints().begin() + 4);
 
-        auto const& input = find_value(variable_table, node.input(0));
-        auto const& weight = find_value(parameter_table, node.input(1));
-        mkldnn::memory::dims input_tz(input.dims().begin(), input.dims().end());
-        mkldnn::memory::dims weight_tz(weight.dims().begin(),
-                                       weight.dims().end());
-        auto output_tz = make_conv_output_tz(input_tz, weight_tz, strides,
+        // Load input and weight
+        auto const& input_memory =
+          find_value(variable_memory_table, node.input(0));
+        auto const& weight_memory =
+          find_value(parameter_memory_table, node.input(1));
+        auto input_dims = extract_dims(input_memory);
+        auto weight_dims = extract_dims(weight_memory);
+        auto output_tz = make_conv_output_tz(input_dims, weight_dims, strides,
                                              padding_l, padding_r);
-        std::cout << "input_tz ";
-        for(auto i : input_tz) {
-            std::cout << i << " ";
-        }
-        std::cout << "\n";
-        std::cout << "weight_tz ";
-        for(auto i : weight_tz) {
-            std::cout << i << " ";
-        }
-        std::cout << "\n----\n";
-
-        auto user_input_memory =
-          mkldnn::memory({{{input_tz},
-                           mkldnn::memory::data_type::f32,
-                           mkldnn::memory::format::nchw},
-                          engine},
-                         static_cast<float*>(input.data()));
-        auto user_weight_memory =
-          mkldnn::memory({{{weight_tz},
-                           mkldnn::memory::data_type::f32,
-                           mkldnn::memory::format::oihw},
-                          engine},
-                         static_cast<float*>(weight.data()));
 
         auto conv_input_md =
-          mkldnn::memory::desc({input_tz}, mkldnn::memory::data_type::f32,
+          mkldnn::memory::desc({input_dims}, mkldnn::memory::data_type::f32,
                                mkldnn::memory::format::any);
         auto conv_weight_md =
-          mkldnn::memory::desc({weight_tz}, mkldnn::memory::data_type::f32,
+          mkldnn::memory::desc({weight_dims}, mkldnn::memory::data_type::f32,
                                mkldnn::memory::format::any);
         auto conv_output_md =
           mkldnn::memory::desc({output_tz}, mkldnn::memory::data_type::f32,
@@ -111,68 +110,147 @@ namespace instant {
               conv_input_md, conv_weight_md, conv_output_md, strides, padding_l,
               padding_r, mkldnn::padding_kind::zero);
         } else {
-            auto const& bias = find_value(parameter_table, node.input(2));
-            mkldnn::memory::dims bias_tz(bias.dims().begin(),
-                                         bias.dims().end());
-            auto bias_md =
-              mkldnn::memory::desc({bias_tz}, mkldnn::memory::data_type::f32,
-                                   mkldnn::memory::format::x);
+            auto const& bias_memory =
+              find_value(parameter_memory_table, node.input(2));
             conv_desc_p = std::make_unique<mkldnn::convolution_forward::desc>(
               mkldnn::prop_kind::forward, mkldnn::algorithm::convolution_direct,
-              conv_input_md, conv_weight_md, bias_md, conv_output_md, strides,
+              conv_input_md, conv_weight_md,
+              bias_memory.get_primitive_desc().desc(), conv_output_md, strides,
               padding_l, padding_r, mkldnn::padding_kind::zero);
         }
         auto conv_pd =
           mkldnn::convolution_forward::primitive_desc(*conv_desc_p, engine);
+
+        std::cout << "net" << std::endl;
         std::vector<mkldnn::primitive> net;
 
-        auto conv_input_memory = user_input_memory;
+        auto conv_input_memory = input_memory;
         if(mkldnn::memory::primitive_desc(conv_pd.src_primitive_desc()) !=
-           user_input_memory.get_primitive_desc()) {
+           input_memory.get_primitive_desc()) {
             conv_input_memory = mkldnn::memory(conv_pd.src_primitive_desc());
-            net.push_back(
-              mkldnn::reorder(user_input_memory, conv_input_memory));
+            net.push_back(mkldnn::reorder(input_memory, conv_input_memory));
         }
 
-        auto conv_weight_memory = user_weight_memory;
+        std::cout << "weightmemory" << std::endl;
+        auto conv_weight_memory = weight_memory;
         if(mkldnn::memory::primitive_desc(conv_pd.weights_primitive_desc()) !=
-           user_input_memory.get_primitive_desc()) {
+           weight_memory.get_primitive_desc()) {
             conv_weight_memory =
               mkldnn::memory(conv_pd.weights_primitive_desc());
-            net.push_back(
-              mkldnn::reorder(user_weight_memory, conv_input_memory));
+            net.push_back(mkldnn::reorder(weight_memory, conv_weight_memory));
         }
 
         auto conv_output_memory = mkldnn::memory(conv_pd.dst_primitive_desc());
+        std::cout << "bbb" << std::endl;
 
         if(node.input_size() == 2) {
             net.push_back(mkldnn::convolution_forward(
               conv_pd, conv_input_memory, conv_weight_memory,
               conv_output_memory));
         } else {
-            auto const& bias = find_value(parameter_table, node.input(2));
-            auto conv_bias_memory =
-              mkldnn::memory(conv_pd.bias_primitive_desc(), bias.data());
+            auto const& conv_bias_memory =
+              find_value(parameter_memory_table, node.input(2));
+            std::cout << "aaa" << std::endl;
             net.push_back(mkldnn::convolution_forward(
               conv_pd, conv_input_memory, conv_weight_memory, conv_bias_memory,
               conv_output_memory));
         }
+        /*
+        std::cout << "submit" << std::endl;
+        mkldnn::stream(mkldnn::stream::kind::eager).submit(net).wait();
+        std::cout << "wait" << std::endl;
+        */
 
-        return net;
+        return std::make_tuple(net, conv_output_memory);
     }
 
-    inline auto construct_net(
+    inline auto make_parameter_memory_pair(
+      onnx::NodeProto const& node, int param_index,
+      mkldnn::memory::format format,
+      std::unordered_map<std::string, instant::array>& parameter_table,
+      mkldnn::engine const& engine) {
+        auto const& name = node.input(param_index);
+        auto& arr = find_value(parameter_table, name);
+        mkldnn::memory::dims tz(arr.dims().begin(), arr.dims().end());
+        auto mem = mkldnn::memory(
+          {{{tz}, mkldnn::memory::data_type::f32, format}, engine}, arr.data());
+        return std::make_pair(name, mem);
+    }
+
+    inline auto make_parameter_memory_table(
       onnx::GraphProto const& graph,
-      std::unordered_map<std::string, instant::array> parameter_table,
-      std::unordered_map<std::string, instant::array> variable_table,
-      instant::context const& context = instant::get_context()) {
+      std::unordered_map<std::string, instant::array>& parameter_table,
+      mkldnn::engine const& engine) {
+        std::unordered_map<std::string, mkldnn::memory> memory_table;
+        for(auto const& node : graph.node()) {
+            if(node.op_type() == "Conv") {
+                constexpr auto weight_index = 1;
+                memory_table.insert(make_parameter_memory_pair(
+                  node, weight_index, mkldnn::memory::format::oihw,
+                  parameter_table, engine));
+
+                if(node.input_size() != 2) {
+                    constexpr auto bias_index = 2;
+                    memory_table.insert(make_parameter_memory_pair(
+                      node, bias_index, mkldnn::memory::format::x,
+                      parameter_table, engine));
+                }
+            } else {
+                // TODO
+                // throw "Not implemented";
+            }
+        }
+        return memory_table;
+    }
+
+    inline auto make_variable_memory_table(
+      std::vector<std::tuple<std::string, instant::array,
+                             mkldnn::memory::format>>& input_list,
+      mkldnn::engine const& engine) {
+        std::unordered_map<std::string, mkldnn::memory> memory_table;
+        for(auto& input : input_list) {
+            auto& arr = std::get<1>(input);
+            auto format = std::get<2>(input);
+            mkldnn::memory::dims tz(arr.dims().begin(), arr.dims().end());
+            auto mem = mkldnn::memory(
+              {{{tz}, mkldnn::memory::data_type::f32, format}, engine},
+              arr.data());
+            auto const& name = std::get<0>(input);
+            memory_table.insert({name, mem});
+        }
+        return memory_table;
+    }
+
+    inline auto
+    run_model(onnx::GraphProto const& graph,
+              std::unordered_map<std::string, mkldnn::memory>&
+                parameter_memory_table, // not const: in-place reorder
+              std::unordered_map<std::string, mkldnn::memory>&
+                variable_memory_table, // not const: in-place reorder
+              std::vector<std::string> const& output_name_list,
+              instant::context const& context = instant::get_context()) {
+        std::unordered_map<std::string, instant::array> output_table;
         std::vector<mkldnn::primitive> net;
         for(auto const& node : graph.node()) {
             if(node.op_type() == "Conv") {
                 std::cout << "Conv<\n";
-                auto conv_net = make_conv_primitive(
-                  parameter_table, variable_table, node, context.engine());
+                auto conv_net_and_output_memory = make_conv_primitive(
+                  parameter_memory_table, variable_memory_table, node,
+                  context.engine());
+                std::cout << "made" << std::endl;
+                auto const& conv_net = std::get<0>(conv_net_and_output_memory);
+                auto const& output_memory =
+                  std::get<1>(conv_net_and_output_memory);
+                variable_memory_table.insert({node.output(0), output_memory});
                 net.insert(net.end(), conv_net.begin(), conv_net.end());
+                if(std::find(output_name_list.begin(), output_name_list.end(),
+                             node.output(0)) != output_name_list.end()) {
+                    // TODO copy output memory to output array (with reordering)
+                    // output_memory
+                    // output_table[node.output(0)];
+                }
+                std::cout << "!!!!!here" << std::endl;
+                break;
 
             } else if(node.op_type() == "Gemm") {
                 std::cout << "Gemm<\n";
@@ -200,6 +278,9 @@ namespace instant {
             }
             std::cout << "\n";
         }
+        std::cout << net.size() << std::endl;
+        mkldnn::stream(mkldnn::stream::kind::eager).submit(net).wait();
+        return output_table;
     }
 
 } // namespace instant
