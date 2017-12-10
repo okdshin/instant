@@ -35,11 +35,11 @@ namespace instant {
         */
     };
 
-    auto tensor_proto_data_type_to_dtype_t(onnx::TensorProto_DataType d) {
+    inline auto tensor_proto_data_type_to_dtype_t(onnx::TensorProto_DataType d) {
         return static_cast<instant::dtype_t>(d);
     }
 
-    auto dtype_t_to_tensor_proto_data_type(dtype_t d) {
+    inline auto dtype_t_to_tensor_proto_data_type(dtype_t d) {
         return static_cast<int>(d);
     }
 
