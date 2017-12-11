@@ -16,29 +16,13 @@ namespace {
 class MKLDNNTest : public ::testing::Test {};
 
 TEST_F(MKLDNNTest, run_onnx_model) {
-    //auto onnx_model = instant::load_onnx("../data/VGG.onnx");
-    auto batch_size = 1;
+    // auto onnx_model = instant::load_onnx("../data/VGG.onnx");
+    auto batch_size = 10;
     auto onnx_model = instant::load_onnx("../data/vgg16/model.pb");
     auto parameter_table = make_parameter_table(onnx_model.graph());
     std::unordered_map<std::string, instant::array> input_table;
-    input_table["gpu_0/data_0"] = instant::array(
-        instant::dtype_t::float_, {batch_size, 3, 224, 224},
-        std::unique_ptr<float[]>(new float[batch_size * 3 * 224 * 224]));
-    /*
-    std::unordered_map<std::string, instant::array> output_table;
-    output_table["gpu_0/pred_1"] =
-        instant::array(instant::dtype_t::float_, {batch_size, 1000},
-                       std::unique_ptr<float[]>(new float[batch_size * 1000]));
-    */
-    /*
-    std::map<std::string, instant::array> initializers =
-    load_initializers(onnx_model.graph()); std::vector<onnx::NodeProto> nodes =
-    load_nodes(onnx_model.graph()); std::vector<std::vector<onnx::NodeProto
-    const*>> node_partial_order = serialize_nodes(initializers, nodes);
-    instant::construct_net(initializers, node_partial_order);
-    */
-    // instant::construct_net(onnx_model.graph(), parameter_table,
-    // variable_table);
+    input_table["gpu_0/data_0"] =
+        instant::uniforms(instant::dtype_t::float_, {batch_size, 3, 224, 224}, 0);
     auto parameter_memory_table = instant::make_parameter_memory_table(
         onnx_model.graph(), parameter_table, ::instant::get_context().engine());
     std::cout << "parameter memory table" << std::endl;
@@ -55,13 +39,21 @@ TEST_F(MKLDNNTest, run_onnx_model) {
     for (auto const& p : variable_memory_table) {
         std::cout << p.first << std::endl;
     }
-    std::cout << "array " << *static_cast<float*>(parameter_table["gpu_0/conv1_w_0"].data()) << std::endl;
-    std::cout << "array " << static_cast<float*>(variable_memory_table.find("gpu_0/data_0")->second.get_data_handle()) << std::endl;
     auto output_table = run_model(onnx_model.graph(), parameter_memory_table,
                                   variable_memory_table, {"gpu_0/conv1_1"});
-    std::cout << "array " << *static_cast<float*>(parameter_table["gpu_0/conv1_w_0"].data()) << std::endl;
     for (auto const& p : output_table) {
         std::cout << p.first << std::endl;
+        for (auto d : p.second.dims()) {
+            std::cout << d << " ";
+        }
+        std::cout << std::endl;
+        /*
+        for (int i = 0; i < instant::calc_total_size(p.second.dims()); ++i) {
+            std::cout << *(static_cast<float const*>(p.second.data()) + i)
+                      << " ";
+        }
+        std::cout << std::endl;
+        */
     }
 }
 

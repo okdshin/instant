@@ -6,10 +6,13 @@
 
 namespace instant {
 
+    inline auto calc_total_size(std::vector<int> const& dims) {
+          return std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>());
+    }
+
     inline std::shared_ptr<void> allocate_data(dtype_t d,
                                                 std::vector<int> const& dims) {
-        auto total_size =
-          std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>());
+        auto total_size = calc_total_size(dims);
         if(d == dtype_t::float_) {
             return std::unique_ptr<float[]>(new float[total_size]);
         }
@@ -34,6 +37,20 @@ namespace instant {
         std::vector<int> dims_;
         std::shared_ptr<void> data_;
     };
+
+    template<typename T>
+    inline auto uniforms(dtype_t d, std::vector<int> const& dims, T val) {
+        auto arr = array(d, dims);
+        if(d == dtype_t::float_) {
+            std::fill_n(static_cast<float*>(arr.data()), calc_total_size(dims), static_cast<float>(val));
+            return arr;
+        }
+        throw "Not implemented";
+    }
+
+    inline auto zeros(dtype_t d, std::vector<int> const& dims) {
+        return uniforms(d, dims, 0.);
+    }
 
 } // namespace instant
 
