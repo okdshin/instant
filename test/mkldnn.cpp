@@ -16,7 +16,7 @@ namespace {
 class MKLDNNTest : public ::testing::Test {};
 
 TEST_F(MKLDNNTest, run_onnx_model) {
-    // auto onnx_model = instant::load_onnx("../data/VGG.onnx");
+    //auto onnx_model = instant::load_onnx("../data/VGG.onnx");
     auto batch_size = 1;
     auto onnx_model = instant::load_onnx("../data/vgg16/model.pb");
     auto parameter_table = make_parameter_table(onnx_model.graph());
@@ -55,40 +55,15 @@ TEST_F(MKLDNNTest, run_onnx_model) {
     for (auto const& p : variable_memory_table) {
         std::cout << p.first << std::endl;
     }
+    std::cout << "array " << *static_cast<float*>(parameter_table["gpu_0/conv1_w_0"].data()) << std::endl;
+    std::cout << "array " << static_cast<float*>(variable_memory_table.find("gpu_0/data_0")->second.get_data_handle()) << std::endl;
     auto output_table = run_model(onnx_model.graph(), parameter_memory_table,
                                   variable_memory_table, {"gpu_0/conv1_1"});
+    std::cout << "array " << *static_cast<float*>(parameter_table["gpu_0/conv1_w_0"].data()) << std::endl;
     for (auto const& p : output_table) {
         std::cout << p.first << std::endl;
     }
 }
-// Load input
-/*
-auto input_name = node.input(0);
-auto input_var_iter = memory_table.find(input_name);
-if(input_var_iter == memory_table.end()) {
-    auto const& input = find_value(model_input_table, node.input(0));
-    mkldnn::memory::dims input_tz(input.dims().begin(),
-                                  input.dims().end());
-    std::cout << "input_tz ";
-    for(auto i : input_tz) {
-        std::cout << i << " ";
-    }
-    auto user_input_memory =
-      mkldnn::memory({{{input_tz},
-                       mkldnn::memory::data_type::f32,
-                       mkldnn::memory::format::nchw},
-                      engine},
-                     static_cast<float*>(input.data()));
-} else {
-    auto user_input_memory = *input_var_iter;
-}
-
-auto weight_memory = mkldnn::memory({{{weight_tz},
-                                      mkldnn::memory::data_type::f32,
-                                      mkldnn::memory::format::oihw},
-                                     engine},
-                                    static_cast<float*>(weight.data()));
-*/
 
 }  // namespace
 }  // namespace instant

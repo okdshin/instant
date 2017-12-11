@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.1)
 # C++ setup
 set(CMAKE_CXX_STANDARD 14)
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU|Clang|Intel")
-	add_definitions(-g -Wall -Wextra -Wno-sign-compare)
+	add_definitions(-g -Wall -Wextra -Wno-sign-compare -O0)
 endif()
 include_directories("${PROJECT_SOURCE_DIR}")
 

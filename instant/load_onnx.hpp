@@ -149,9 +149,12 @@ namespace instant {
                 using float_t =
                   instant::dtype_t_to_type_t<instant::dtype_t::float_>;
                 data = std::unique_ptr<float_t[]>(new float_t[total_size]);
-                std::copy(tensor.float_data().begin(),
-                          tensor.float_data().end(),
-                          static_cast<float_t*>(data.get()));
+                // TODO other format: float_data
+                assert(tensor.has_raw_data());
+                assert(tensor.raw_data().length() == total_size*4);
+                std::copy(tensor.raw_data().begin(),
+                          tensor.raw_data().end(),
+                          static_cast<char*>(data.get()));
             } else {
                 throw onnx_load_error("Not implemented");
             }
