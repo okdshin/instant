@@ -17,7 +17,7 @@ namespace instant {
         // std::cout << key << std::endl;
         auto found = m.find(key);
         if(found == m.end()) {
-            throw "not found";
+            throw std::runtime_error("not found: " + key);
         }
         return found->second;
     }
@@ -27,7 +27,7 @@ namespace instant {
         // std::cout << key << std::endl;
         auto found = m.find(key);
         if(found == m.end()) {
-            throw "not found";
+            throw std::runtime_error("not found: " + key);
         }
         return found->second;
     }
@@ -38,7 +38,8 @@ namespace instant {
     }
 
     inline auto make_conv_output_tz(mkldnn::memory::dims const& input_tz,
-                                    mkldnn::memory::dims const& weight_tz,
+                                    int output_channel_num,
+                                    mkldnn::memory::dims const& kernel_shape,
                                     mkldnn::memory::dims const& stride,
                                     mkldnn::memory::dims const& padding_l,
                                     mkldnn::memory::dims const& padding_r) {
@@ -46,11 +47,10 @@ namespace instant {
             return (il - kl + pl + pr) / s + 1;
         };
         auto batch_size = input_tz[0];
-        auto output_channel_num = weight_tz[0];
         auto ih = input_tz[2];
         auto iw = input_tz[3];
-        auto kh = weight_tz[2];
-        auto kw = weight_tz[3];
+        auto kh = kernel_shape[0];
+        auto kw = kernel_shape[1];
         return mkldnn::memory::dims(
           {batch_size, output_channel_num,
            calc_length(ih, kh, padding_l[0], padding_r[0], stride[0]),
@@ -76,13 +76,27 @@ namespace instant {
         auto strides = mkldnn::memory::dims(strides_attr.ints().begin(),
                                             strides_attr.ints().end());
 
+        onnx::AttributeProto const& kernel_shape_attr =
+          find_value(attribute_table, "kernel_shape"s);
+        assert(kernel_shape_attr.ints().size() == 2);
+        auto kernel_shape = mkldnn::memory::dims(
+          kernel_shape_attr.ints().begin(), kernel_shape_attr.ints().end());
+
         onnx::AttributeProto const& pads_attr =
           find_value(attribute_table, "pads"s);
-        assert(pads_attr.ints().size() == 4);
-        auto padding_l = mkldnn::memory::dims(pads_attr.ints().begin() + 0,
-                                              pads_attr.ints().begin() + 2);
-        auto padding_r = mkldnn::memory::dims(pads_attr.ints().begin() + 2,
-                                              pads_attr.ints().begin() + 4);
+        // assert(pads_attr.ints().size() == 4);
+        mkldnn::memory::dims padding_l, padding_r;
+        if(pads_attr.ints().size() == 4) {
+            padding_l = mkldnn::memory::dims(pads_attr.ints().begin() + 0,
+                                             pads_attr.ints().begin() + 2);
+            padding_r = mkldnn::memory::dims(pads_attr.ints().begin() + 2,
+                                             pads_attr.ints().begin() + 4);
+        } else if(pads_attr.ints().size() == 2) {
+            padding_l = padding_r = mkldnn::memory::dims(
+              pads_attr.ints().begin() + 0, pads_attr.ints().begin() + 2);
+        } else {
+            throw std::runtime_error("Not implemented");
+        }
 
         // Load input and weight
         auto const& input_memory =
@@ -91,8 +105,9 @@ namespace instant {
           find_value(parameter_memory_table, node.input(1));
         auto input_dims = extract_dims(input_memory);
         auto weight_dims = extract_dims(weight_memory);
-        auto output_tz = make_conv_output_tz(input_dims, weight_dims, strides,
-                                             padding_l, padding_r);
+        auto output_tz =
+          make_conv_output_tz(input_dims, weight_dims[0], kernel_shape, strides,
+                              padding_l, padding_r);
         std::unique_ptr<mkldnn::memory> output_memory_p;
         std::unique_ptr<instant::array> output_arr_p;
         auto const& output_name = node.output(0);
@@ -164,7 +179,8 @@ namespace instant {
            mkldnn::memory::primitive_desc(conv_pd.dst_primitive_desc()) !=
              output_memory_p->get_primitive_desc()) {
             conv_output_memory = mkldnn::memory(conv_pd.dst_primitive_desc());
-            //temp_variable_memory_list.push_back(conv_output_memory); // useless?
+            // temp_variable_memory_list.push_back(conv_output_memory); //
+            // useless?
         }
 
         if(node.input_size() == 2) {
@@ -203,7 +219,7 @@ namespace instant {
         variable_memory_table,
       std::set<std::string> const& output_name_set, onnx::NodeProto const& node,
       mkldnn::engine const& engine) {
-        auto negative_slope = 1.0;
+        auto negative_slope = 0.; // 1.0;
         auto const& input_memory =
           find_value(variable_memory_table, node.input(0));
         auto input_output_dims = extract_dims(input_memory);
@@ -236,7 +252,8 @@ namespace instant {
            mkldnn::memory::primitive_desc(relu_pd.dst_primitive_desc()) !=
              output_memory_p->get_primitive_desc()) {
             relu_output_memory = mkldnn::memory(relu_pd.dst_primitive_desc());
-            //temp_variable_memory_list.push_back(relu_output_memory); // useless?
+            // temp_variable_memory_list.push_back(relu_output_memory); //
+            // useless?
         }
 
         net.push_back(
@@ -259,6 +276,65 @@ namespace instant {
                                std::vector<decltype(output_name_and_arr)>{
                                  std::move(output_name_and_arr)});
     }
+
+    /*
+    inline auto make_max_pool_primitive(
+      std::unordered_map<std::string, const mkldnn::memory> const&
+        parameter_memory_table,
+      std::unordered_map<std::string, const mkldnn::memory> const&
+        variable_memory_table,
+      std::set<std::string> const& output_name_set, onnx::NodeProto const& node,
+      mkldnn::engine const& engine) {
+        // Load attributes
+        using namespace std::literals::string_literals;
+
+        auto attribute_table = instant::make_attribute_table(node);
+
+        onnx::AttributeProto const& strides_attr =
+          find_value(attribute_table, "strides"s);
+        assert(strides_attr.ints().size() == 2);
+        auto strides = mkldnn::memory::dims(strides_attr.ints().begin(),
+                                            strides_attr.ints().end());
+
+        onnx::AttributeProto const& kernel_shape_attr =
+          find_value(attribute_table, "kernel_shape"s);
+        assert(kernel_shape_attr.ints().size() == 2);
+        auto kernel_shape =
+    mkldnn::memory::dims(kernel_shape_attr.ints().begin(),
+                                            kernel_shape_attr.ints().end());
+
+        onnx::AttributeProto const& pads_attr =
+          find_value(attribute_table, "pads"s);
+        // Load input and weight
+        auto const& input_memory =
+          find_value(variable_memory_table, node.input(0));
+        auto input_dims = extract_dims(input_memory);
+        auto output_channel_num = input_dims[1];
+        auto output_tz = make_conv_output_tz(input_dims, output_channel_num,
+    kernel_shape, strides, padding_l, padding_r);
+        std::unique_ptr<mkldnn::memory> output_memory_p;
+        std::unique_ptr<instant::array> output_arr_p;
+        auto const& output_name = node.output(0);
+        std::vector<mkldnn::memory>
+          temp_variable_memory_list; // for temporary memory's life
+        if(output_name_set.find(output_name) != output_name_set.end()) {
+            output_arr_p = std::make_unique<instant::array>(dtype_t::float_,
+                                                            input_output_dims);
+            output_memory_p = std::make_unique<mkldnn::memory>(mkldnn::memory(
+              input_memory.get_primitive_desc(), output_arr_p->data()));
+            temp_variable_memory_list.push_back(*output_memory_p);
+        }
+
+        auto pool_input_memory = input_memory;
+        if(mkldnn::memory::primitive_desc(conv_pd.src_primitive_desc()) !=
+           input_memory.get_primitive_desc()) {
+            conv_input_memory = mkldnn::memory(conv_pd.src_primitive_desc());
+            temp_variable_memory_list.push_back(conv_input_memory);
+            net.push_back(mkldnn::reorder(input_memory, conv_input_memory));
+        }
+
+    }
+    */
 
     inline auto make_parameter_memory_pair(
       onnx::NodeProto const& node, int param_index,
@@ -328,8 +404,15 @@ namespace instant {
 
     inline auto make_default_primitive_factory_table() {
         std::unordered_map<std::string, primitive_factory>
-          primitive_factory_table{{"Conv", make_conv_primitive},
-                                  {"Relu", make_relu_primitive}};
+          primitive_factory_table;
+        primitive_factory_table.insert({"Conv", make_conv_primitive});
+        // TODO
+        // primitive_factory_table.insert({"Relu", make_relu_primitive});
+        // primitive_factory_table.insert({"MaxPool", make_max_pool_primitive});
+        // primitive_factory_table.insert({"FC", make_max_fc_primitive});
+        // primitive_factory_table.insert({"Reshape", make_reshape_primitive});
+        // primitive_factory_table.insert({"Dropout", make_dropout_primitive});
+        // primitive_factory_table.insert({"Softmax", make_softmax_primitive});
         return primitive_factory_table;
     }
 
@@ -386,7 +469,9 @@ namespace instant {
                 for(auto&& output_name_and_arr : output_name_and_arr_list) {
                     output_table.insert(std::move(output_name_and_arr));
                 }
-            } catch(...) {}
+            } catch(std::exception const& e) {
+                std::cout << "Error: " << e.what() << std::endl;
+            }
         }
         std::cout << "float size " << sizeof(float) << std::endl;
         std::cout << "net size " << nets.size() << std::endl;

@@ -16,7 +16,7 @@ namespace instant {
         if(d == dtype_t::float_) {
             return std::unique_ptr<float[]>(new float[total_size]);
         }
-        throw "Not implemented";
+        throw std::runtime_error("Not implemented dtype: "+std::to_string(static_cast<int>(d)));
     }
 
     class array {
