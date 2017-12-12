@@ -179,8 +179,6 @@ namespace instant {
            mkldnn::memory::primitive_desc(conv_pd.dst_primitive_desc()) !=
              output_memory_p->get_primitive_desc()) {
             conv_output_memory = mkldnn::memory(conv_pd.dst_primitive_desc());
-            // temp_variable_memory_list.push_back(conv_output_memory); //
-            // useless?
         }
 
         if(node.input_size() == 2) {
@@ -202,14 +200,16 @@ namespace instant {
 
         auto output_name_and_mem =
           std::make_pair(output_name, std::move(conv_output_memory));
-        auto output_name_and_arr =
-          std::make_pair(output_name, std::move(*output_arr_p));
+        std::vector<std::pair<std::string, array>> output_name_and_arr_list;
+        if(output_arr_p) {
+            output_name_and_arr_list.emplace_back(
+              std::make_pair(output_name, std::move(*output_arr_p)));
+        }
         return std::make_tuple(net,
                                std::vector<decltype(output_name_and_mem)>{
                                  std::move(output_name_and_mem)},
                                temp_variable_memory_list,
-                               std::vector<decltype(output_name_and_arr)>{
-                                 std::move(output_name_and_arr)});
+                               output_name_and_arr_list);
     }
 
     inline auto make_relu_primitive(
@@ -252,8 +252,6 @@ namespace instant {
            mkldnn::memory::primitive_desc(relu_pd.dst_primitive_desc()) !=
              output_memory_p->get_primitive_desc()) {
             relu_output_memory = mkldnn::memory(relu_pd.dst_primitive_desc());
-            // temp_variable_memory_list.push_back(relu_output_memory); //
-            // useless?
         }
 
         net.push_back(
@@ -267,14 +265,16 @@ namespace instant {
 
         auto output_name_and_mem =
           std::make_pair(output_name, std::move(relu_output_memory));
-        auto output_name_and_arr =
-          std::make_pair(output_name, std::move(*output_arr_p));
+        std::vector<std::pair<std::string, array>> output_name_and_arr_list;
+        if(output_arr_p) {
+            output_name_and_arr_list.emplace_back(
+              std::make_pair(output_name, std::move(*output_arr_p)));
+        }
         return std::make_tuple(net,
                                std::vector<decltype(output_name_and_mem)>{
                                  std::move(output_name_and_mem)},
                                temp_variable_memory_list,
-                               std::vector<decltype(output_name_and_arr)>{
-                                 std::move(output_name_and_arr)});
+                               output_name_and_arr_list);
     }
 
     /*
@@ -406,8 +406,8 @@ namespace instant {
         std::unordered_map<std::string, primitive_factory>
           primitive_factory_table;
         primitive_factory_table.insert({"Conv", make_conv_primitive});
+        primitive_factory_table.insert({"Relu", make_relu_primitive});
         // TODO
-        // primitive_factory_table.insert({"Relu", make_relu_primitive});
         // primitive_factory_table.insert({"MaxPool", make_max_pool_primitive});
         // primitive_factory_table.insert({"FC", make_max_fc_primitive});
         // primitive_factory_table.insert({"Reshape", make_reshape_primitive});

@@ -49,13 +49,13 @@ TEST_F(MKLDNNTest, run_onnx_model) {
                   // variable_memory_table, {"gpu_0/conv1_1", "gpu_0/conv1_2"});
                   variable_memory_table, {"140326201104648"});
     for (auto const& p : output_table) {
-        std::cout << p.first << std::endl;
+        std::cout << p.first << " (";
         for (auto d : p.second.dims()) {
             std::cout << d << " ";
         }
-        std::cout << std::endl;
-        for (int i = 0; i < instant::calc_total_size(p.second.dims()); ++i) {
-            // for (int i = 0; i < 10; ++i) {
+        std::cout << ")" << std::endl;
+        //for (int i = 0; i < instant::calc_total_size(p.second.dims()); ++i) {
+        for (int i = 0; i < 10; ++i) {
             std::cout << *(static_cast<float const*>(p.second.data()) + i)
                       << " ";
         }
