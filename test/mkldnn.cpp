@@ -15,17 +15,38 @@ namespace {
 
 class MKLDNNTest : public ::testing::Test {};
 
+TEST_F(MKLDNNTest, test_calc_reshaped_dims) {
+    {
+        auto new_shape = instant::calc_reshaped_dims({10, 20, 30, 40}, {10, 20, -1, 40});
+        for(auto n : new_shape) {
+            std::cout << n << " ";
+        }
+        std::cout << "\n";
+    }
+    {
+        auto new_shape = instant::calc_reshaped_dims({10, 20, 30, 40}, {10, -1});
+        for(auto n : new_shape) {
+            std::cout << n << " ";
+        }
+        std::cout << "\n";
+    }
+    {
+        auto new_shape = instant::calc_reshaped_dims({10, 20, 30, 40}, {40, 20, 30, 10});
+        for(auto n : new_shape) {
+            std::cout << n << " ";
+        }
+        std::cout << "\n";
+    }
+}
+
 TEST_F(MKLDNNTest, run_onnx_model) {
     auto onnx_model = instant::load_onnx("../data/VGG16.onnx");
     auto batch_size = 1;
     // auto onnx_model = instant::load_onnx("../data/vgg16/model.pb");
     auto parameter_table = make_parameter_table(onnx_model.graph());
-    std::unordered_map<std::string, instant::array> input_table;
-    // input_table["gpu_0/data_0"] = instant::uniforms(
-    /*
-    input_table["140326425860192"] = instant::uniforms(
-        instant::dtype_t::float_, {batch_size, 3, 224, 224}, 0);
-    */
+    for (auto const& p : parameter_table) {
+        std::cout << p.first << std::endl;
+    }
     auto parameter_memory_table = instant::make_parameter_memory_table(
         onnx_model.graph(), parameter_table, ::instant::get_context().engine());
     std::cout << "parameter memory table" << std::endl;
@@ -52,7 +73,9 @@ TEST_F(MKLDNNTest, run_onnx_model) {
                       "140326201105432",
                       "140326429223512", //pool
                       "140326150903064",
-                      "140326200776800"
+                      "140326200776800",
+                      "140326200777080",
+                    "140326200777360"
                   });
     for (auto const& p : output_table) {
         std::cout << p.first << " (";
