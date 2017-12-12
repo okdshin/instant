@@ -574,6 +574,66 @@ namespace instant {
           temp_variable_memory_list, output_name_and_arr_list);
     }
 
+    inline auto make_softmax_primitive(
+      std::unordered_map<std::string, const mkldnn::memory> const&
+      /*parameter_memory_table*/,
+      std::unordered_map<std::string, std::tuple<const mkldnn::memory,
+                                                 mkldnn::memory::format>> const&
+        variable_memory_table,
+      std::set<std::string> const& required_output_set,
+      onnx::NodeProto const& node, mkldnn::engine const& engine) {
+        constexpr auto softmax_axis = 1;
+        auto const& input_memory_and_origin_format =
+          find_value(variable_memory_table, node.input(0));
+        auto const& input_memory = std::get<0>(input_memory_and_origin_format);
+        auto input_origin_format = std::get<1>(input_memory_and_origin_format);
+        auto input_output_dims = extract_dims(input_memory);
+
+        std::unique_ptr<mkldnn::memory> output_memory_p;
+        std::unique_ptr<instant::array> output_arr_p;
+        auto const& output_name = node.output(0);
+        std::vector<mkldnn::memory>
+          temp_variable_memory_list; // for temporary memory's life
+        if(required_output_set.find(output_name) != required_output_set.end()) {
+            output_arr_p = std::make_unique<instant::array>(dtype_t::float_,
+                                                            input_output_dims);
+            output_memory_p = std::make_unique<mkldnn::memory>(
+              mkldnn::memory({{{input_output_dims},
+                               mkldnn::memory::data_type::f32,
+                               input_origin_format},
+                              engine},
+                             output_arr_p->data()));
+        }
+
+        auto op_desc = mkldnn::softmax_forward::desc(
+          mkldnn::prop_kind::forward, input_memory.get_primitive_desc().desc(),
+          softmax_axis);
+        auto op_pd = mkldnn::softmax_forward::primitive_desc(op_desc, engine);
+
+        std::vector<mkldnn::primitive> net;
+
+        auto op_output_memory = output_memory_p
+                                  ? *output_memory_p
+                                  : mkldnn::memory(input_memory.get_primitive_desc());
+
+        net.push_back(
+          mkldnn::softmax_forward(op_pd, input_memory, op_output_memory));
+
+        auto output_name_and_mem_and_origin_format = std::make_pair(
+          output_name,
+          std::make_tuple(std::move(op_output_memory), input_origin_format));
+        std::vector<std::pair<std::string, array>> output_name_and_arr_list;
+        if(output_arr_p) {
+            output_name_and_arr_list.emplace_back(
+              std::make_pair(output_name, std::move(*output_arr_p)));
+        }
+        return std::make_tuple(
+          net,
+          std::vector<decltype(output_name_and_mem_and_origin_format)>{
+            std::move(output_name_and_mem_and_origin_format)},
+          temp_variable_memory_list, output_name_and_arr_list);
+    }
+
     inline auto make_parameter_memory_pair(
       onnx::NodeProto const& node, int param_index,
       mkldnn::memory::format format,
@@ -665,9 +725,9 @@ namespace instant {
         primitive_factory_table.insert({"MaxPool", make_max_pool_primitive});
         primitive_factory_table.insert({"FC", make_fc_primitive});
         primitive_factory_table.insert({"Dropout", make_dropout_primitive});
+        primitive_factory_table.insert({"Softmax", make_softmax_primitive});
         // TODO
         // primitive_factory_table.insert({"Reshape", make_reshape_primitive});
-        // primitive_factory_table.insert({"Softmax", make_softmax_primitive});
         return primitive_factory_table;
     }
 
