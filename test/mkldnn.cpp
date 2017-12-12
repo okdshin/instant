@@ -54,7 +54,7 @@ TEST_F(MKLDNNTest, run_onnx_model) {
             std::cout << d << " ";
         }
         std::cout << ")" << std::endl;
-        //for (int i = 0; i < instant::calc_total_size(p.second.dims()); ++i) {
+        // for (int i = 0; i < instant::calc_total_size(p.second.dims()); ++i) {
         for (int i = 0; i < 10; ++i) {
             std::cout << *(static_cast<float const*>(p.second.data()) + i)
                       << " ";
