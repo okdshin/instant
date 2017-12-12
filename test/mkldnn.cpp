@@ -47,7 +47,13 @@ TEST_F(MKLDNNTest, run_onnx_model) {
     auto output_table =
         run_model(onnx_model.graph(), parameter_memory_table,
                   // variable_memory_table, {"gpu_0/conv1_1", "gpu_0/conv1_2"});
-                  variable_memory_table, {"140326201104648"});
+                  variable_memory_table, {
+                      "140326201104648",
+                      "140326201105432",
+                      "140326429223512", //pool
+                      "140326150903064",
+                      "140326200776800"
+                  });
     for (auto const& p : output_table) {
         std::cout << p.first << " (";
         for (auto d : p.second.dims()) {
