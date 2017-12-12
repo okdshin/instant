@@ -351,8 +351,9 @@ namespace instant {
               input_memory.get_primitive_desc(), output_arr_p->data()));
         }
 
-        auto pool_output_md = mkldnn::memory::desc({output_tz}, mkldnn::memory::data_type::f32,
-                                        mkldnn::memory::format::any);
+        auto pool_output_md =
+          mkldnn::memory::desc({output_tz}, mkldnn::memory::data_type::f32,
+                               mkldnn::memory::format::any);
 
         auto max_pool_desc = mkldnn::pooling_forward::desc(
           mkldnn::prop_kind::forward, mkldnn::pooling_max,
@@ -374,7 +375,8 @@ namespace instant {
             temp_variable_memory_list.push_back(*output_memory_p);
         }
 
-        auto max_pool_indices_memory = mkldnn::memory(max_pool_pd.workspace_primitive_desc());
+        auto max_pool_indices_memory =
+          mkldnn::memory(max_pool_pd.workspace_primitive_desc());
         temp_variable_memory_list.push_back(max_pool_indices_memory);
 
         net.push_back(mkldnn::pooling_forward(max_pool_pd, input_memory,
@@ -396,6 +398,110 @@ namespace instant {
               std::make_pair(output_name, std::move(*output_arr_p)));
         }
 
+        return std::make_tuple(
+          net,
+          std::vector<decltype(output_name_and_mem_and_origin_format)>{
+            std::move(output_name_and_mem_and_origin_format)},
+          temp_variable_memory_list, output_name_and_arr_list);
+    }
+
+    inline auto make_fc_primitive(
+      std::unordered_map<std::string, const mkldnn::memory> const&
+        parameter_memory_table,
+      std::unordered_map<std::string, std::tuple<const mkldnn::memory,
+                                                 mkldnn::memory::format>> const&
+        variable_memory_table,
+      std::set<std::string> const& required_output_set,
+      onnx::NodeProto const& node, mkldnn::engine const& engine) {
+        // Load input and weight
+        auto const& input_memory_and_origin_format =
+          find_value(variable_memory_table, node.input(0));
+        auto const& input_memory = std::get<0>(input_memory_and_origin_format);
+        auto input_origin_format = std::get<1>(input_memory_and_origin_format);
+        auto const& weight_memory =
+          find_value(parameter_memory_table, node.input(1));
+        auto const& bias_memory =
+          find_value(parameter_memory_table, node.input(2));
+        auto input_dims = extract_dims(input_memory);
+        auto weight_dims = extract_dims(weight_memory);
+        auto bias_dims = extract_dims(bias_memory);
+        mkldnn::memory::dims output_tz{input_dims[0], bias_dims[0]};
+        std::unique_ptr<mkldnn::memory> output_memory_p;
+        std::unique_ptr<instant::array> output_arr_p;
+        auto const& output_name = node.output(0);
+        std::vector<mkldnn::memory>
+          temp_variable_memory_list; // for temporary memory's life
+        if(required_output_set.find(output_name) != required_output_set.end()) {
+            output_arr_p =
+              std::make_unique<instant::array>(dtype_t::float_, output_tz);
+            output_memory_p = std::make_unique<mkldnn::memory>(
+              mkldnn::memory({{{output_tz},
+                               mkldnn::memory::data_type::f32,
+                               input_origin_format},
+                              engine},
+                             output_arr_p->data()));
+        }
+
+        auto fc_input_md =
+          mkldnn::memory::desc({input_dims}, mkldnn::memory::data_type::f32,
+                               mkldnn::memory::format::any);
+        auto fc_weight_md =
+          mkldnn::memory::desc({weight_dims}, mkldnn::memory::data_type::f32,
+                               mkldnn::memory::format::any);
+        auto fc_output_md =
+          mkldnn::memory::desc({output_tz}, mkldnn::memory::data_type::f32,
+                               mkldnn::memory::format::any);
+
+        mkldnn::inner_product_forward::desc fc_desc(
+          mkldnn::prop_kind::forward, fc_input_md, fc_weight_md,
+          bias_memory.get_primitive_desc().desc(), fc_output_md);
+        auto fc_pd =
+          mkldnn::inner_product_forward::primitive_desc(fc_desc, engine);
+
+        std::vector<mkldnn::primitive> net;
+
+        auto fc_input_memory = input_memory;
+        if(mkldnn::memory::primitive_desc(fc_pd.src_primitive_desc()) !=
+           input_memory.get_primitive_desc()) {
+            fc_input_memory = mkldnn::memory(fc_pd.src_primitive_desc());
+            temp_variable_memory_list.push_back(fc_input_memory);
+            net.push_back(mkldnn::reorder(input_memory, fc_input_memory));
+        }
+
+        auto fc_weight_memory = weight_memory;
+        if(mkldnn::memory::primitive_desc(fc_pd.weights_primitive_desc()) !=
+           weight_memory.get_primitive_desc()) {
+            fc_weight_memory = mkldnn::memory(fc_pd.weights_primitive_desc());
+            temp_variable_memory_list.push_back(fc_weight_memory);
+            net.push_back(mkldnn::reorder(weight_memory, fc_weight_memory));
+        }
+
+        auto fc_output_memory = output_memory_p
+                                  ? *output_memory_p
+                                  : mkldnn::memory(fc_pd.dst_primitive_desc());
+        if(output_memory_p &&
+           mkldnn::memory::primitive_desc(fc_pd.dst_primitive_desc()) !=
+             output_memory_p->get_primitive_desc()) {
+            fc_output_memory = mkldnn::memory(fc_pd.dst_primitive_desc());
+            temp_variable_memory_list.push_back(*output_memory_p);
+        }
+
+        net.push_back(mkldnn::inner_product_forward(
+          fc_pd, fc_input_memory, fc_weight_memory, bias_memory,
+          fc_output_memory));
+
+        if(output_memory_p && fc_output_memory != *output_memory_p) {
+            net.push_back(mkldnn::reorder(fc_output_memory, *output_memory_p));
+        }
+
+        auto output_name_and_mem_and_origin_format = std::make_pair(
+          output_name,
+          std::make_tuple(std::move(fc_output_memory), input_origin_format));
+        std::vector<std::pair<std::string, array>> output_name_and_arr_list;
+        if(output_arr_p) {
+            output_name_and_arr_list.emplace_back(
+              std::make_pair(output_name, std::move(*output_arr_p)));
+        }
         return std::make_tuple(
           net,
           std::vector<decltype(output_name_and_mem_and_origin_format)>{
@@ -492,8 +598,8 @@ namespace instant {
         primitive_factory_table.insert({"Conv", make_conv_primitive});
         primitive_factory_table.insert({"Relu", make_relu_primitive});
         primitive_factory_table.insert({"MaxPool", make_max_pool_primitive});
+        primitive_factory_table.insert({"FC", make_fc_primitive});
         // TODO
-        // primitive_factory_table.insert({"FC", make_max_fc_primitive});
         // primitive_factory_table.insert({"Reshape", make_reshape_primitive});
         // primitive_factory_table.insert({"Dropout", make_dropout_primitive});
         // primitive_factory_table.insert({"Softmax", make_softmax_primitive});
