@@ -17,22 +17,25 @@ class MKLDNNTest : public ::testing::Test {};
 
 TEST_F(MKLDNNTest, test_calc_reshaped_dims) {
     {
-        auto new_shape = instant::calc_reshaped_dims({10, 20, 30, 40}, {10, 20, -1, 40});
-        for(auto n : new_shape) {
+        auto new_shape =
+            instant::calc_reshaped_dims({10, 20, 30, 40}, {10, 20, -1, 40});
+        for (auto n : new_shape) {
             std::cout << n << " ";
         }
         std::cout << "\n";
     }
     {
-        auto new_shape = instant::calc_reshaped_dims({10, 20, 30, 40}, {10, -1});
-        for(auto n : new_shape) {
+        auto new_shape =
+            instant::calc_reshaped_dims({10, 20, 30, 40}, {10, -1});
+        for (auto n : new_shape) {
             std::cout << n << " ";
         }
         std::cout << "\n";
     }
     {
-        auto new_shape = instant::calc_reshaped_dims({10, 20, 30, 40}, {40, 20, 30, 10});
-        for(auto n : new_shape) {
+        auto new_shape =
+            instant::calc_reshaped_dims({10, 20, 30, 40}, {40, 20, 30, 10});
+        for (auto n : new_shape) {
             std::cout << n << " ";
         }
         std::cout << "\n";
@@ -57,7 +60,7 @@ TEST_F(MKLDNNTest, run_onnx_model) {
     std::vector<std::tuple<std::string, instant::array, mkldnn::memory::format>>
         input_list{{"140326425860192",
                     instant::uniforms(instant::dtype_t::float_,
-                                      {batch_size, 3, 224, 224}, 0),
+                                      {batch_size, 3, 224, 224}, 1),
                     mkldnn::memory::format::nchw}};
     auto variable_memory_table = instant::make_variable_memory_table(
         input_list, ::instant::get_context().engine());
@@ -65,18 +68,45 @@ TEST_F(MKLDNNTest, run_onnx_model) {
     for (auto const& p : variable_memory_table) {
         std::cout << p.first << std::endl;
     }
+    std::vector<std::string> required_output_name_list{
+        "140326201105432",  // conv1_1
+        "140326201105600",  // conv1_2
+        "140326429223512",  // pool1
+        "140326150903400",  // conv2_1
+        "140326200661440",  // conv2_2
+        "140326200661720",  // pool2
+        "140326200662112",  // conv3_1
+        "140326200662560",  // conv3_2
+        "140326200663008",  // conv3_3
+        "140326200663288",  // pool3
+        "140326200663680",  // conv4_1
+        "140326200774784",  // conv4_2
+        "140326200775232",  // conv4_3
+        "140326200775512",  // pool4
+        "140326200775904",  // conv5_1
+        "140326200776352",  // conv5_2
+        "140326200776800",  // conv5_3
+        "140326200777080",  // pool5
+        "140326200777976",  // fc6
+        "140326200778648",  // fc7
+        "140326200803456",  // fc8
+        "140326200803680",  // prob
+    };
     auto output_table =
         run_model(onnx_model.graph(), parameter_memory_table,
                   // variable_memory_table, {"gpu_0/conv1_1", "gpu_0/conv1_2"});
-                  variable_memory_table, {
-                      "140326201104648",
-                      "140326201105432",
-                      "140326429223512", //pool
-                      "140326150903064",
-                      "140326200776800",
-                      "140326200777080",
-                    "140326200777360"
-                  });
+                  variable_memory_table,
+                  std::set<std::string>(required_output_name_list.begin(),
+                                        required_output_name_list.end()));
+    for(auto const& layer : required_output_name_list) {
+        auto const& data = output_table[layer];
+        for (int i = 0; i < 10; ++i) {
+            std::cout << *(static_cast<float const*>(data.data()) + i)
+                      << " ";
+        }
+        std::cout << "\n";
+    }
+    /*
     for (auto const& p : output_table) {
         std::cout << p.first << " (";
         for (auto d : p.second.dims()) {
@@ -90,6 +120,7 @@ TEST_F(MKLDNNTest, run_onnx_model) {
         }
         std::cout << std::endl;
     }
+    */
 }
 
 }  // namespace
