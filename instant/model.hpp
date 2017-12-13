@@ -810,7 +810,7 @@ namespace instant {
                 constexpr auto weight_index = 1;
                 constexpr auto bias_index = 2;
                 memory_table.insert(make_parameter_memory_pair(
-                  node, weight_index, mkldnn::memory::format::io, // TODO check
+                  node, weight_index, mkldnn::memory::format::oi, // TODO check
                   parameter_table, engine));
                 memory_table.insert(make_parameter_memory_pair(
                   node, bias_index, mkldnn::memory::format::x, parameter_table,
