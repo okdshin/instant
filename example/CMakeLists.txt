@@ -1,0 +1,7 @@
+find_package(OpenCV)
+if (NOT OpenCV_FOUND)
+	message(FATAL_ERROR "OpenCV not found. OpenCV is needed to build example.")
+endif()
+include_directories(${OpenCV_INCLUDE_DIRS})
+add_executable(vgg18_example vgg18_example.cpp)
+target_link_libraries(vgg18_example mkldnn onnx_proto ${PROTOBUF_LIBRARY} ${OpenCV_LIBS})
