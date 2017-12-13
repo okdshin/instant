@@ -268,7 +268,6 @@ namespace instant {
           mkldnn::eltwise_forward(op_pd, input_memory, op_output_memory));
 
         if(output_memory_p && op_output_memory != *output_memory_p) {
-            std::cout << "reorder" << std::endl;
             net.push_back(mkldnn::reorder(op_output_memory, *output_memory_p));
         }
 
@@ -386,7 +385,6 @@ namespace instant {
                                               max_pool_indices_memory));
 
         if(output_memory_p && max_pool_output_memory != *output_memory_p) {
-            std::cout << "reorder" << std::endl;
             net.push_back(
               mkldnn::reorder(max_pool_output_memory, *output_memory_p));
         }
@@ -453,7 +451,6 @@ namespace instant {
         net.push_back(mkldnn::reorder(input_memory, op_output_memory));
 
         if(output_memory_p && op_output_memory != *output_memory_p) {
-            std::cout << "reorder" << std::endl;
             net.push_back(mkldnn::reorder(op_output_memory, *output_memory_p));
         }
 
@@ -513,28 +510,11 @@ namespace instant {
           find_value(attribute_table, "shape"s);
         auto shape = mkldnn::memory::dims(shape_attr.ints().begin(),
                                           shape_attr.ints().end());
-        for(auto s : shape) {
-            std::cout << s << " ";
-        }
-        std::cout << "\n";
-
         auto const& input_memory_and_origin_format =
           find_value(variable_memory_table, node.input(0));
         auto const& input_memory = std::get<0>(input_memory_and_origin_format);
-        /*
-        auto input_origin_format =
-          std::get<1>(input_memory_and_origin_format);
-        */
         auto input_dims = extract_dims(input_memory);
-        for(auto s : input_dims) {
-            std::cout << s << " ";
-        }
-        std::cout << "\n";
         auto output_dims = calc_reshaped_dims(input_dims, shape);
-        for(auto s : output_dims) {
-            std::cout << s << " ";
-        }
-        std::cout << "\n";
 
         auto const& output_name = node.output(0);
         std::vector<mkldnn::memory>
@@ -623,18 +603,6 @@ namespace instant {
                               engine},
                              output_arr_p->data()));
         }
-        for(auto i : input_dims) {
-            std::cout << i << " ";
-        }
-        std::cout << "\n";
-        for(auto i : weight_dims) {
-            std::cout << i << " ";
-        }
-        std::cout << "\n";
-        for(auto i : output_tz) {
-            std::cout << i << " ";
-        }
-        std::cout << "\n";
 
         auto fc_input_md =
           mkldnn::memory::desc({input_dims}, mkldnn::memory::data_type::f32,
@@ -899,15 +867,6 @@ namespace instant {
         std::vector<mkldnn::primitive> nets;
         std::vector<mkldnn::memory> temp_variable_memory_list;
         for(auto const& node : graph.node()) {
-            std::cout << node.op_type() << "\t";
-            for(auto const& i : node.input()) {
-                std::cout << i << " ";
-            }
-            std::cout << "-> ";
-            for(auto const& i : node.output()) {
-                std::cout << i << " ";
-            }
-            std::cout << "\n";
             try {
                 auto primitive_factory_pair_iter =
                   primitive_factory_table.find(node.op_type());
@@ -946,8 +905,6 @@ namespace instant {
                 std::cout << "Error: " << e.what() << std::endl;
             }
         }
-        std::cout << "float size " << sizeof(float) << std::endl;
-        std::cout << "net size " << nets.size() << std::endl;
         mkldnn::stream(mkldnn::stream::kind::eager).submit(nets).wait();
         return output_table;
     }
