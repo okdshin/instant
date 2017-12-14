@@ -1,8 +1,15 @@
 # Instant
 
-Instant is DNN inference library.
+Instant is DNN inference library written in C++.
 
-Instant is written in C++14.
+## Goal
+- DNN Inference
+- C++
+- Easy to use.
+
+# Requirement
+
+- MKL-DNN Library
 
 # Build
 
@@ -13,7 +20,7 @@ cmake ..
 make
 ```
 
-# Run VGG16
+# Run VGG16 example
 
 ```
 example/vgg16_example
@@ -28,6 +35,3 @@ example/vgg16_example
 - Dropout
 - Softmax
 
-## Goal
-- Easy to use.
-- MKL-DNN
