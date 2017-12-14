@@ -27,8 +27,5 @@ if(${ENABLE_TEST})
 	add_subdirectory(test)
 endif()
 
-if(${ENABLE_EXAMPLE})
-    add_subdirectory(example)
-endif()
-
+add_subdirectory(example)
 add_subdirectory(instant)
