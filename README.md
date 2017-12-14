@@ -5,6 +5,7 @@ Instant is DNN inference library written in C++.
 ## Goal
 - DNN Inference
 - C++
+- ONNX support
 - Easy to use.
 
 # Requirement
