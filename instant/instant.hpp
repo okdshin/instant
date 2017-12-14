@@ -7,22 +7,22 @@ namespace instant {
 
     class model {
     public:
-        model(
-          onnx::ModelProto const& onnx_model,
-          std::unordered_map<std::string, array> const& parameter_table,
-          std::unordered_map<std::string, const mkldnn::memory> const&
-            parameter_memory_table,
-          std::unordered_map<std::string, array> const& input_table,
-          std::unordered_map<
-            std::string,
-            std::tuple<const mkldnn::memory, mkldnn::memory::format>> const&
-            input_memory_table,
-          std::unordered_map<std::string, array> const& output_table,
-          std::vector<mkldnn::primitive> const& nets,
-          std::unordered_map<std::string, std::tuple<const mkldnn::memory,
-                                                     mkldnn::memory::format>> const&
-            variable_memory_table,
-          std::vector<mkldnn::memory> const& temp_variable_memory_list)
+        model(onnx::ModelProto const& onnx_model,
+              std::unordered_map<std::string, array> const& parameter_table,
+              std::unordered_map<std::string, const mkldnn::memory> const&
+                parameter_memory_table,
+              std::unordered_map<std::string, array> const& input_table,
+              std::unordered_map<
+                std::string,
+                std::tuple<const mkldnn::memory, mkldnn::memory::format>> const&
+                input_memory_table,
+              std::unordered_map<std::string, array> const& output_table,
+              std::vector<mkldnn::primitive> const& nets,
+              std::unordered_map<
+                std::string,
+                std::tuple<const mkldnn::memory, mkldnn::memory::format>> const&
+                variable_memory_table,
+              std::vector<mkldnn::memory> const& temp_variable_memory_list)
           : onnx_model_(onnx_model), parameter_table_(parameter_table),
             parameter_memory_table_(parameter_memory_table),
             input_table_(input_table), input_memory_table_(input_memory_table),
@@ -32,6 +32,9 @@ namespace instant {
 
         auto& input(std::string const& input_name) {
             return find_value(input_table_, input_name);
+        }
+        auto const& output(std::string const& input_name) const {
+            return find_value(output_table_, input_name);
         }
 
         auto const& run() const {
@@ -50,7 +53,9 @@ namespace instant {
           input_memory_table_;
         std::unordered_map<std::string, array> output_table_;
         std::vector<mkldnn::primitive> nets_;
-        std::unordered_map<std::string, std::tuple<const mkldnn::memory, mkldnn::memory::format>> variable_memory_table_;
+        std::unordered_map<
+          std::string, std::tuple<const mkldnn::memory, mkldnn::memory::format>>
+          variable_memory_table_;
         std::vector<mkldnn::memory> temp_variable_memory_list_;
     };
 

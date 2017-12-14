@@ -129,7 +129,8 @@ int main(int argc, char** argv) {
     }
     std::cout << "...\n";
 
-    auto const& softmax_out_arr = instant::find_value(output_table, softmax_out_name);
+    auto const& softmax_out_arr =
+      instant::find_value(output_table, softmax_out_name);
 
     auto categories = load_category_list(synset_words_path);
     auto top_k = 5;
