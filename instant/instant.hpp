@@ -60,13 +60,12 @@ namespace instant {
     };
 
     inline auto make_model(
-      std::string const& onnx_model_path,
+      onnx::ModelProto const& onnx_model,
       std::vector<std::tuple<std::string, dtype_t, std::vector<int> const&,
                              mkldnn::memory::format>> const&
         input_name_dtype_dims_format_list,
       std::vector<std::string> const& required_output_name_list,
       mkldnn::engine const& engine = ::instant::get_context().engine()) {
-        auto onnx_model = instant::load_onnx(onnx_model_path);
         auto parameter_table = make_parameter_table(onnx_model.graph());
         auto parameter_memory_table = make_parameter_memory_table(
           onnx_model.graph(), parameter_table, engine);

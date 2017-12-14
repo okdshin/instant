@@ -105,9 +105,12 @@ int main(int argc, char** argv) {
     auto fc6_out_name = "140326200777976";
     auto softmax_out_name = "140326200803680";
 
-    // Load ONNX model and construct computation graph
+    // Load ONNX model
+    auto onnx_model = instant::load_onnx(onnx_model_path);
+
+    // Construct computation primitive list and memories
     auto model = instant::make_model(
-      onnx_model_path,
+      onnx_model,
       {{conv1_1_in_name, instant::dtype_t::float_, input_dims,
         mkldnn::memory::format::nchw}},  // input's (name, dtype, dims, format)
                                          // list
