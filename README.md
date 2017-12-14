@@ -1,6 +1,7 @@
 # Instant
 
 Instant is DNN inference library written in C++.
+Instant is released under MIT Licence.
 
 ## Goal
 - DNN Inference
