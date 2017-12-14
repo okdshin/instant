@@ -12,9 +12,9 @@
 #include <mkldnn.hpp>
 
 namespace instant {
-    template <typename Key, typename T>
-    inline auto const& find_value(std::unordered_map<Key, T> const& m,
-                                  Key const& key) {
+    template <typename T>
+    inline auto const& find_value(std::unordered_map<std::string, T> const& m,
+                                  std::string const& key) {
         // std::cout << key << std::endl;
         auto found = m.find(key);
         if(found == m.end()) {
@@ -23,8 +23,9 @@ namespace instant {
         return found->second;
     }
 
-    template <typename Key, typename T>
-    inline auto& find_value(std::unordered_map<Key, T>& m, Key const& key) {
+    template <typename T>
+    inline auto& find_value(std::unordered_map<std::string, T>& m,
+                            std::string const& key) {
         // std::cout << key << std::endl;
         auto found = m.find(key);
         if(found == m.end()) {
@@ -140,17 +141,19 @@ namespace instant {
         std::unique_ptr<mkldnn::convolution_forward::desc> conv_desc_p;
         if(node.input_size() == 2) {
             conv_desc_p = std::make_unique<mkldnn::convolution_forward::desc>(
-              mkldnn::prop_kind::forward_inference, mkldnn::algorithm::convolution_direct,
-              conv_input_md, conv_weight_md, conv_output_md, strides, padding_l,
-              padding_r, mkldnn::padding_kind::zero);
+              mkldnn::prop_kind::forward_inference,
+              mkldnn::algorithm::convolution_direct, conv_input_md,
+              conv_weight_md, conv_output_md, strides, padding_l, padding_r,
+              mkldnn::padding_kind::zero);
         } else {
             auto const& bias_memory =
               find_value(parameter_memory_table, node.input(2));
             conv_desc_p = std::make_unique<mkldnn::convolution_forward::desc>(
-              mkldnn::prop_kind::forward_inference, mkldnn::algorithm::convolution_direct,
-              conv_input_md, conv_weight_md,
-              bias_memory.get_primitive_desc().desc(), conv_output_md, strides,
-              padding_l, padding_r, mkldnn::padding_kind::zero);
+              mkldnn::prop_kind::forward_inference,
+              mkldnn::algorithm::convolution_direct, conv_input_md,
+              conv_weight_md, bias_memory.get_primitive_desc().desc(),
+              conv_output_md, strides, padding_l, padding_r,
+              mkldnn::padding_kind::zero);
         }
         auto conv_pd =
           mkldnn::convolution_forward::primitive_desc(*conv_desc_p, engine);
@@ -715,8 +718,8 @@ namespace instant {
         }
 
         auto op_desc = mkldnn::softmax_forward::desc(
-          mkldnn::prop_kind::forward_inference, input_memory.get_primitive_desc().desc(),
-          softmax_axis);
+          mkldnn::prop_kind::forward_inference,
+          input_memory.get_primitive_desc().desc(), softmax_axis);
         auto op_pd = mkldnn::softmax_forward::primitive_desc(op_desc, engine);
 
         std::vector<mkldnn::primitive> net;
@@ -778,15 +781,19 @@ namespace instant {
                 constexpr auto weight_index = 1;
                 constexpr auto bias_index = 2;
                 memory_table.insert(make_parameter_memory_pair(
-                  node, weight_index, mkldnn::memory::format::oi, // TODO check
+                  node, weight_index,
+                  mkldnn::memory::format::oi, // MEMO: is it correct? result is
+                                              // correct...
                   parameter_table, engine));
                 memory_table.insert(make_parameter_memory_pair(
                   node, bias_index, mkldnn::memory::format::x, parameter_table,
                   engine));
             } else {
                 // TODO
-                // throw std::runtime_error("Not implemented: " +
-                // node.op_type());
+                /*
+                throw std::runtime_error("Not implemented yet: " +
+                                         node.op_type());
+                */
             }
         }
         return memory_table;
@@ -843,7 +850,6 @@ namespace instant {
         primitive_factory_table.insert({"Relu", make_relu_primitive});
         primitive_factory_table.insert({"MaxPool", make_max_pool_primitive});
         primitive_factory_table.insert({"Reshape", make_reshape_primitive});
-        // primitive_factory_table.insert({"Reshape", make_nop_primitive});
         primitive_factory_table.insert({"FC", make_fc_primitive});
         primitive_factory_table.insert({"Dropout", make_dropout_primitive});
         primitive_factory_table.insert({"Softmax", make_softmax_primitive});
@@ -851,18 +857,19 @@ namespace instant {
         return primitive_factory_table;
     }
 
-    inline auto run_model(
+    inline auto make_nets(
       onnx::GraphProto const& graph,
       std::unordered_map<std::string, const mkldnn::memory> const&
         parameter_memory_table,
       std::unordered_map<
         std::string, std::tuple<const mkldnn::memory, mkldnn::memory::format>>&
-        variable_memory_table,
+        input_memory_table,
       std::set<std::string> const& required_output_set,
       std::unordered_map<std::string, primitive_factory>
         primitive_factory_table =
           instant::make_default_primitive_factory_table(),
       instant::context const& context = instant::get_context()) {
+        auto variable_memory_table = input_memory_table;
         std::unordered_map<std::string, instant::array> output_table;
         std::vector<mkldnn::primitive> nets;
         std::vector<mkldnn::memory> temp_variable_memory_list;
@@ -905,6 +912,26 @@ namespace instant {
                 std::cout << "Error: " << e.what() << std::endl;
             }
         }
+        return std::make_tuple(nets, variable_memory_table, temp_variable_memory_list, output_table);
+    }
+
+    inline auto run_model(
+      onnx::GraphProto const& graph,
+      std::unordered_map<std::string, const mkldnn::memory> const&
+        parameter_memory_table,
+      std::unordered_map<
+        std::string, std::tuple<const mkldnn::memory, mkldnn::memory::format>>&
+        input_memory_table,
+      std::set<std::string> const& required_output_set,
+      std::unordered_map<std::string, primitive_factory>
+        primitive_factory_table =
+          instant::make_default_primitive_factory_table(),
+      instant::context const& context = instant::get_context()) {
+        auto temp_tuple =
+          make_nets(graph, parameter_memory_table, input_memory_table,
+                    required_output_set, primitive_factory_table, context);
+        auto const& nets = std::get<0>(temp_tuple);
+        auto const& output_table = std::get<3>(temp_tuple);
         mkldnn::stream(mkldnn::stream::kind::eager).submit(nets).wait();
         return output_table;
     }

@@ -120,6 +120,7 @@ namespace instant {
         return onnx_model;
     }
 
+    //TODO avoid copy
     /*
     inline auto make_parameter_table(onnx::GraphProto const& graph) {
         std::unordered_map<std::string,

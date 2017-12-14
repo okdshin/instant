@@ -4,8 +4,7 @@
 
 #include <opencv2/opencv.hpp>
 
-#include <instant/array.hpp>
-#include <instant/model.hpp>
+#include <instant/instant.hpp>
 
 #include "cmdline.h"
 
@@ -23,13 +22,12 @@ auto crop_and_resize(cv::Mat mat, cv::Size const& size) {
 
 auto reorder_to_nchw(cv::Mat const& mat) {
     assert(mat.channels() == 3);
-    std::unique_ptr<float[]> data(
-      new float[mat.channels() * mat.rows * mat.cols]);
+    std::vector<float> data(mat.channels() * mat.rows * mat.cols);
     for(int y = 0; y < mat.rows; ++y) {
         for(int x = 0; x < mat.cols; ++x) {
             // cv::imread loads image BGR order so reordering here to RGB
             for(int c = mat.channels() - 1; c >= 0; --c) {
-                *(data.get() + (c * (mat.rows * mat.cols) + y * mat.cols + x)) =
+                data[c * (mat.rows * mat.cols) + y * mat.cols + x] =
                   static_cast<float>(
                     mat.data[y * mat.step + x * mat.elemSize() + c]);
             }
@@ -78,6 +76,8 @@ int main(int argc, char** argv) {
     constexpr auto height = 224;
     constexpr auto width = 224;
 
+    std::vector<int> input_dims{batch_size, channel_num, height, width};
+
     cmdline::parser a;
     a.add<std::string>("input_image", 'i', "input image path", false,
                        "../data/Light_sussex_hen.jpg");
@@ -98,61 +98,46 @@ int main(int argc, char** argv) {
                                  input_image_path);
     }
     image_mat = crop_and_resize(std::move(image_mat), cv::Size(width, height));
-    instant::array input_image(instant::dtype_t::float_,
-                               {batch_size, channel_num, height, width},
-                               reorder_to_nchw(image_mat));
+    auto image_data = reorder_to_nchw(image_mat);
 
-    auto onnx_model = instant::load_onnx(onnx_model_path);
-
-    std::cout << "model input and output" << std::endl;
-    for(auto const& node : onnx_model.graph().node()) {
-        std::cout << node.op_type() << "\t";
-        for(auto const& i : node.input()) {
-            std::cout << i << " ";
-        }
-        std::cout << "-> ";
-        for(auto const& i : node.output()) {
-            std::cout << i << " ";
-        }
-        std::cout << "\n";
-    }
-
-    auto parameter_table = instant::make_parameter_table(onnx_model.graph());
-    auto parameter_memory_table = instant::make_parameter_memory_table(
-      onnx_model.graph(), parameter_table, ::instant::get_context().engine());
-
+    // Alias to onnx's node input and output tensor name
     auto conv1_1_in_name = "140326425860192";
-    std::vector<std::tuple<std::string, instant::array, mkldnn::memory::format>>
-      input_list{{conv1_1_in_name, input_image, mkldnn::memory::format::nchw}};
-    auto variable_memory_table = instant::make_variable_memory_table(
-      input_list, ::instant::get_context().engine());
-
     auto fc6_out_name = "140326200777976";
     auto softmax_out_name = "140326200803680";
-    std::vector<std::string> required_output_name_list{fc6_out_name,
-                                                       softmax_out_name};
-    auto output_table = instant::run_model(
-      onnx_model.graph(), parameter_memory_table, variable_memory_table,
-      std::set<std::string>(required_output_name_list.begin(),
-                            required_output_name_list.end()));
-    for(auto const& required_output_name : required_output_name_list) {
-        std::cout << required_output_name << ": ";
-        for(int i = 0; i < 5; ++i) {
-            std::cout << *(
-              static_cast<float*>(output_table[required_output_name].data()) +
-              i);
-        }
-        std::cout << "...\n";
-    }
 
-    auto const& softmax_out = output_table[softmax_out_name];
+    // Load ONNX model and construct computation graph
+    auto model = instant::make_model(
+      onnx_model_path,
+      {{conv1_1_in_name, instant::dtype_t::float_, input_dims,
+        mkldnn::memory::format::nchw}},  // input's (name, dtype, dims, format)
+                                         // list
+      {fc6_out_name, softmax_out_name}); // required output's name list
+
+    // Copy input image data to model's input array
+    auto& input_array = model.input(conv1_1_in_name);
+    std::copy(image_data.begin(), image_data.end(),
+              instant::fbegin(input_array));
+
+    // Run inference
+    auto const& output_table = model.run();
+
+    // Get output
+    auto const& fc6_out_arr = instant::find_value(output_table, fc6_out_name);
+    std::cout << "fc6_out: ";
+    for(int i = 0; i < 5; ++i) {
+        std::cout << instant::fat(fc6_out_arr, i) << " ";
+    }
+    std::cout << "...\n";
+
+    auto const& softmax_out_arr = instant::find_value(output_table, softmax_out_name);
 
     auto categories = load_category_list(synset_words_path);
     auto top_k = 5;
     auto top_k_indices = extract_top_k_index_list(
-      instant::fbegin(softmax_out), instant::fend(softmax_out), top_k);
+      instant::fbegin(softmax_out_arr), instant::fend(softmax_out_arr), top_k);
+    std::cout << "top " << top_k << " categories are\n";
     for(auto ki : top_k_indices) {
-        std::cout << ki << " " << instant::fat(softmax_out, ki) << " "
+        std::cout << ki << " " << instant::fat(softmax_out_arr, ki) << " "
                   << categories.at(ki) << std::endl;
     }
 }
