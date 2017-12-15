@@ -3,9 +3,9 @@
 
 #include <algorithm>
 #include <exception>
+#include <fstream>
 #include <functional>
 #include <numeric>
-#include <onnx.pb.h>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -17,6 +17,7 @@
 
 #include <instant/array.hpp>
 #include <instant/dtype.hpp>
+#include <instant/onnx.pb.h>
 
 namespace instant {
 
@@ -120,7 +121,7 @@ namespace instant {
         return onnx_model;
     }
 
-    //TODO avoid copy
+    // TODO avoid copy
     /*
     inline auto make_parameter_table(onnx::GraphProto const& graph) {
         std::unordered_map<std::string,
@@ -152,9 +153,8 @@ namespace instant {
                 data = std::unique_ptr<float_t[]>(new float_t[total_size]);
                 // TODO other format: float_data
                 assert(tensor.has_raw_data());
-                assert(tensor.raw_data().length() == total_size*4);
-                std::copy(tensor.raw_data().begin(),
-                          tensor.raw_data().end(),
+                assert(tensor.raw_data().length() == total_size * 4);
+                std::copy(tensor.raw_data().begin(), tensor.raw_data().end(),
                           static_cast<char*>(data.get()));
             } else {
                 throw onnx_load_error("Not implemented");

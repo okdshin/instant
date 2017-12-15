@@ -5,7 +5,8 @@ Instant is DNN inference library written in C++.
 Instant is released under MIT Licence.
 
 ## Goal
-- DNN Inference
+
+- DNN Inference with CPU
 - C++
 - ONNX support
 - Easy to use.
@@ -13,8 +14,11 @@ Instant is released under MIT Licence.
 # Requirement
 
 - MKL-DNN Library
+- ProtocolBuffers
 
 # Build
+
+Execute below commands in root directory.
 
 ```
 sh retrieve_data.sh
@@ -23,13 +27,24 @@ cmake ..
 make
 ```
 
-# Run VGG16 example
+# Installation
+
+Execute below command in build directory created at Build section.
 
 ```
-example/vgg16_example
+make install
+```
+
+# Run VGG16 example
+
+Execute below command in root directory.
+
+```
+./example/vgg16_example
 ```
 
 # Current supported nodes
+
 - Conv (2D)
 - Relu
 - MaxPool

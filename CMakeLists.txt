@@ -9,7 +9,7 @@ include_directories("${PROJECT_SOURCE_DIR}")
 
 # ONNX setup
 include(cmake/onnx.cmake)
-include_directories(${ONNX_INCLUDE_DIR})
+include_directories("${PROJECT_SOURCE_DIR}/instant")
 
 if(${DISABLE_TEST})
 	set(ENABLE_TEST OFF)
