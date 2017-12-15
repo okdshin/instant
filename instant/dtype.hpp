@@ -3,7 +3,9 @@
 #include <cassert>
 #include <climits>
 #include <cstdint>
-#include <onnx.pb.h>
+
+#include <instant/onnx.pb.h>
+
 namespace instant {
 
     //check byte is 8bit
@@ -68,7 +70,6 @@ namespace instant {
 
     template<dtype_t d>
     using dtype_t_to_type_t = typename dtype_t_to_type<d>::type;
-
 
 } // namespace instant
 

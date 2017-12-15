@@ -6,7 +6,7 @@
 
 #include <instant/instant.hpp>
 
-#include "cmdline.h"
+#include "../external/cmdline.h"
 
 auto crop_and_resize(cv::Mat mat, cv::Size const& size) {
     auto short_edge = std::min(mat.size().width, mat.size().height);
