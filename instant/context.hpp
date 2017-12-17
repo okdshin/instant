@@ -1,3 +1,6 @@
+#ifndef INSTANT_CONTEXT_HPP
+#define INSTANT_CONTEXT_HPP
+
 #include <mkldnn.hpp>
 
 namespace instant {
@@ -43,3 +46,5 @@ namespace instant {
     };
 
 } // namespace instant
+
+#endif // INSTANT_CONTEXT_HPP
