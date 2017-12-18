@@ -4,6 +4,8 @@
 #include <climits>
 #include <cstdint>
 
+#include <mkldnn.hpp>
+
 #include <instant/onnx.pb.h>
 
 namespace instant {
@@ -43,6 +45,14 @@ namespace instant {
 
     inline auto dtype_t_to_tensor_proto_data_type(dtype_t d) {
         return static_cast<int>(d);
+    }
+
+    inline auto dtype_t_to_mkldnn_memory_data_type(dtype_t d) {
+        if (d == dtype_t::float_) {
+            return mkldnn::memory::data_type::f32;
+        }
+        // TODO other types
+        assert(!"Not come here");
     }
 
     template<dtype_t> constexpr int size_in_bytes = 0;
