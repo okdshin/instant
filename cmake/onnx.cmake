@@ -5,7 +5,8 @@ set(ONNX_DIR ${EXTERNAL_DIR}/onnx)
 include(FindProtobuf)
 find_package(Protobuf REQUIRED)
 include_directories(${PROTOBUF_INCLUDE_DIR})
-ExternalProject_Add(ONNX
+ExternalProject_Add(
+    ONNX
     SOURCE_DIR ${ONNX_DIR}/src
     GIT_REPOSITORY https://github.com/onnx/onnx.git
     CONFIGURE_COMMAND ""
@@ -17,5 +18,3 @@ ExternalProject_Add(ONNX
     LOG_CONFIGURE 1
     LOG_BUILD 1
     LOG_INSTALL 1)
-set_source_files_properties(${CMAKE_SOURCE_DIR}/instant/onnx.pb.h PROPERTIES GENERATED TRUE)
-set_source_files_properties(${CMAKE_SOURCE_DIR}/instant/onnx.pb.cc PROPERTIES GENERATED TRUE)
