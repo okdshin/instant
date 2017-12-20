@@ -81,7 +81,7 @@ namespace instant {
               {{{tz}, mkldnn::memory::data_type::f32, format}, engine},
               arr.data());
             auto const& name = std::get<0>(input);
-            memory_table.insert({name, {mem, format}});
+            memory_table.insert({name, std::make_tuple(mem, format)});
         }
         return memory_table;
     }

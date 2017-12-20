@@ -81,7 +81,7 @@ namespace instant {
             auto format = std::get<3>(input_name_dtype_dims_format);
             auto arr = array(dtype, dims);
             input_table.insert({name, arr});
-            input_list.push_back({name, arr, format});
+            input_list.push_back(std::make_tuple(name, arr, format));
         }
         auto input_memory_table =
           make_variable_memory_table(input_list, engine);

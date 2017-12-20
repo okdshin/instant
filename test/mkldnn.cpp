@@ -58,10 +58,10 @@ TEST_F(MKLDNNTest, run_onnx_model) {
     }
 
     std::vector<std::tuple<std::string, instant::array, mkldnn::memory::format>>
-        input_list{{"140326425860192",
+        input_list{std::make_tuple("140326425860192",
                     instant::uniforms(instant::dtype_t::float_,
                                       {batch_size, 3, 224, 224}, 1),
-                    mkldnn::memory::format::nchw}};
+                    mkldnn::memory::format::nchw)};
     auto variable_memory_table = instant::make_variable_memory_table(
         input_list, ::instant::get_context().engine());
     std::cout << "variable memory table" << std::endl;

@@ -111,8 +111,8 @@ int main(int argc, char** argv) {
     // Construct computation primitive list and memories
     auto model = instant::make_model(
       onnx_model,
-      {{conv1_1_in_name, instant::dtype_t::float_, input_dims,
-        mkldnn::memory::format::nchw}},  // input's (name, dtype, dims, format)
+      {std::make_tuple(conv1_1_in_name, instant::dtype_t::float_, input_dims,
+        mkldnn::memory::format::nchw)},  // input's (name, dtype, dims, format)
                                          // list
       {fc6_out_name, softmax_out_name}); // required output's name list
 
