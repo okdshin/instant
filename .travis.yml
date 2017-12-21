@@ -11,6 +11,8 @@ addons:
             - g++-5
             - cmake-data
             - cmake
+            - libprotobuf-dev
+            - libopencv-dev
 install:
     - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
     - git clone https://github.com/01org/mkl-dnn.git
