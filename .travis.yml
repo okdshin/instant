@@ -15,8 +15,8 @@ install:
     - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
     - git clone https://github.com/01org/mkl-dnn.git
     - cd mkl-dnn/scripts && bash ./prepare_mkl.sh && cd ..
-    - grep -v "add_subdirectory(examples)" > CMakeLists.txt
-    - grep -v "add_subdirectory(tests)" > CMakeLists.txt
+    - grep -v "add_subdirectory(examples)" CMakeLists.txt > CMakeLists.txt
+    - grep -v "add_subdirectory(tests)" CMakeLists.txt > CMakeLists.txt
     - mkdir -p build && cd build && cmake .. && make
     - sudo make install
     - cd ../..
