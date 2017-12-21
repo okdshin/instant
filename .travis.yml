@@ -1,5 +1,21 @@
+language: cpp
+addons:
+    apt:
+        sources:
+            - ubuntu-toolchain-r-test
+            - george-edison55-precise-backports
+        packages:
+            - gcc-5
+            - g++-5
+            - cmake-data
+            - cmake
 install:
     - git clone https://github.com/01org/mkl-dnn.git
     - cd mkl-dnn/scripts && bash ./prepare_mkl.sh && cd ..
     - mkdir -p build && cd build && cmake .. && make
     - sudo make install
+build:
+    - mkdir build
+    - cd build
+    - cmake ..
+    - make
