@@ -26,6 +26,6 @@ install:
 script:
     - mkdir build
     - cd build
-    - cmake -DPROTOC="$HOME/protobuf/src/protoc" ..
+    - cmake -DPROTOC="$HOME/instant/protobuf/src/protoc" ..
     - make
     - ./example/vgg16_example
