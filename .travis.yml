@@ -23,9 +23,11 @@ install:
     - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
     - sh .travis/install_protoc.sh
     - sh .travis/install_mkldnn.sh
+before_script:
+    - ls -R $HOME/protoc
 script:
     - mkdir build
     - cd build
-    - cmake -DPROTOC="$HOME/instant/protobuf/src/protoc" ..
+    - cmake -DPROTOC="$HOME/protoc/bin/protoc" ..
     - make
     - ./example/vgg16_example
