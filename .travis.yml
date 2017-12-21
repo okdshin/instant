@@ -15,11 +15,15 @@ addons:
             - libopencv-dev
             - libprotoc-dev
             - protobuf-compiler
+cache:
+    directories:
+        - $HOME/protobuf
+        - $HOME/mkl-dnn
 install:
     - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
     - cd "$HOME"
-    - .travis/install_protoc
-    - .travis/install_mkldnn
+    - sh "$HOME/.travis/install_protoc.sh"
+    - sh "$HOME/.travis/install_mkldnn.sh"
 script:
     - cd "$HOME/instant"
     - mkdir build
