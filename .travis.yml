@@ -25,6 +25,8 @@ install:
     - sh .travis/install_mkldnn.sh
 before_script:
     - ls -R $HOME/protoc
+    - ls -R $HOME/mkl-dnn
+    - echo "$PROTOC"
 script:
     - mkdir build
     - cd build

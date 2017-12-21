@@ -1,4 +1,4 @@
-if [ ! -d "$HOME/mkl-dnn/build/lib" ]; then
+if [ ! -d "$HOME/mkl-dnn/lib" ]; then
     git clone https://github.com/01org/mkl-dnn.git
     cd mkl-dnn/scripts && bash ./prepare_mkl.sh && cd ..
     sed -i 's/add_subdirectory(examples)//g' CMakeLists.txt

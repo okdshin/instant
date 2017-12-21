@@ -7,6 +7,7 @@ if [ ! -d "$HOME/protoc/lib" ]; then
     ./autogen.sh
     ./configure --prefix=$HOME/protoc
     make && make install
+    export PROTOC="$HOME/instant/protobuf/src/protoc"
     cd ..
 else
     echo "Using cached directory."
