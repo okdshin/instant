@@ -17,16 +17,15 @@ addons:
             - protobuf-compiler
 cache:
     directories:
-        - $HOME/protobuf
+        - $HOME/protoc
         - $HOME/mkl-dnn
 install:
     - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
     - sh .travis/install_protoc.sh
     - sh .travis/install_mkldnn.sh
 script:
-    - cd "$HOME/instant"
     - mkdir build
     - cd build
-    - cmake ..
+    - cmake -DPROTOC="$HOME/protobuf/src/protoc" ..
     - make
     - ./example/vgg16_example

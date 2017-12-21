@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.1)
+set(PROTOC "protoc" CACHE STRING "protoc command path")
 
 # C++ setup
 set(CMAKE_CXX_STANDARD 14)
