@@ -13,6 +13,8 @@ addons:
             - cmake
             - libprotobuf-dev
             - libopencv-dev
+            - libprotoc-dev
+            - protobuf-compiler
 install:
     - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
     - git clone https://github.com/01org/mkl-dnn.git
