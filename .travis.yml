@@ -21,9 +21,8 @@ cache:
         - $HOME/mkl-dnn
 install:
     - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
-    - cd "$HOME"
-    - sh "$HOME/instant/.travis/install_protoc.sh"
-    - sh "$HOME/instant/.travis/install_mkldnn.sh"
+    - sh .travis/install_protoc.sh
+    - sh .travis/install_mkldnn.sh
 script:
     - cd "$HOME/instant"
     - mkdir build
