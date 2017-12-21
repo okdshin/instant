@@ -1,3 +1,5 @@
+dist: trusty
+sudo: required
 language: cpp
 addons:
     apt:
@@ -10,12 +12,15 @@ addons:
             - cmake-data
             - cmake
 install:
+    - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
     - git clone https://github.com/01org/mkl-dnn.git
     - cd mkl-dnn/scripts && bash ./prepare_mkl.sh && cd ..
     - mkdir -p build && cd build && cmake .. && make
     - sudo make install
-build:
+    - cd ..
+script:
     - mkdir build
     - cd build
     - cmake ..
     - make
+    - ./example/vgg16_example
