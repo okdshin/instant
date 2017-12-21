@@ -18,25 +18,8 @@ addons:
 install:
     - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
     - cd "$HOME"
-    - | if [ ! -d "$HOME/protobuf/lib" ]; then
-        wget https://protobuf.googlecode.com/files/protobuf-2.6.1.tar.gz
-        tar -xzvf protobuf-2.6.1.tar.gz
-        cd protobuf-2.6.1 && ./configure --prefix=$HOME/protobuf && make && make install
-      else
-        echo "Using cached directory."
-      fi
-    - cd "$HOME"
-    - | if [ ! -d "$HOME/mkl-dnn/build/src" ]; then
-        git clone https://github.com/01org/mkl-dnn.git
-        cd mkl-dnn/scripts && bash ./prepare_mkl.sh && cd ..
-        sed -i 's/add_subdirectory(examples)//g' CMakeLists.txt
-        sed -i 's/add_subdirectory(tests)//g' CMakeLists.txt
-        mkdir -p build && cd build && cmake .. && make
-        sudo make install
-        cd ..
-      else
-        echo "Using cached directory."
-      fi
+    - .travis/install_protoc
+    - .travis/install_mkldnn
 script:
     - cd "$HOME/instant"
     - mkdir build
