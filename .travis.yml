@@ -19,8 +19,6 @@ cache:
     directories:
         - $HOME/protoc
         - $HOME/mkl-dnn
-before_install:
-    - sudo apt update
 install:
     - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
     - sh .travis/install_protoc.sh
