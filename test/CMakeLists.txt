@@ -4,5 +4,5 @@ add_executable(instant_test
 	onnx.cpp
 	mkldnn.cpp)
 target_link_libraries(instant_test
-	gtest_main instant mkldnn ${PROTOBUF_LIBRARY})
+    gtest_main instant ${MKLDNN_LIBRARY} ${PROTOBUF_LIBRARY})
 add_test(NAME instant_test COMMAND instan_test)

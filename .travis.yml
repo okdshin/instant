@@ -1,0 +1,32 @@
+dist: trusty
+sudo: required
+language: cpp
+addons:
+    apt:
+        sources:
+            - ubuntu-toolchain-r-test
+            - george-edison55-precise-backports
+        packages:
+            - gcc-5
+            - g++-5
+            - cmake-data
+            - cmake
+            - libopencv-dev
+cache:
+    directories:
+        - $HOME/protoc
+        - $HOME/mkl-dnn
+install:
+    - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
+    - sh .travis/install_protoc.sh
+    - sh .travis/install_mkldnn.sh
+    - sh retrieve_data.sh
+before_script:
+    - ls -R $HOME/protoc
+    - ls -R $HOME/mkl-dnn
+script:
+    - mkdir build
+    - cd build
+    - sh ../.travis/run_cmake.sh
+    - make
+    - ./example/vgg16_example
