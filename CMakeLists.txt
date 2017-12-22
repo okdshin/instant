@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.1)
-set(PROTOC "protoc" CACHE STRING "protoc command path")
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 # C++ setup
 set(CMAKE_CXX_STANDARD 14)
@@ -13,7 +13,7 @@ include(cmake/onnx.cmake)
 include_directories("${PROJECT_SOURCE_DIR}/instant")
 
 # MKLDNN setup
-include(cmake/mkldnn.cmake)
+find_package(MKLDNN)
 include_directories("${MKLDNN_INCLUDE_DIR}")
 
 if(${DISABLE_TEST})
