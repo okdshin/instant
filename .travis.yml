@@ -27,6 +27,6 @@ before_script:
 script:
     - mkdir build
     - cd build
-    - sh .travis/run_cmake.sh
+    - sh ../.travis/run_cmake.sh
     - make
     - ./example/vgg16_example
