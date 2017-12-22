@@ -12,6 +12,10 @@ include_directories("${PROJECT_SOURCE_DIR}")
 include(cmake/onnx.cmake)
 include_directories("${PROJECT_SOURCE_DIR}/instant")
 
+# MKLDNN setup
+include(cmake/mkldnn.cmake)
+include_directories("${MKLDNN_INCLUDE_DIR}")
+
 if(${DISABLE_TEST})
 	set(ENABLE_TEST OFF)
 else()
