@@ -4,8 +4,7 @@ if [ ! -d "$HOME/protoc/bin" ]; then
     tar -xzvf protobuf.tar.gz
     mv protobuf-2.6.1 protobuf
     cd protobuf
-    ls $HOME/instant/.travis
-    patch -u autogen.sh < $HOME/instant/.travis/autogen.patch
+    patch -u autogen.sh < ../.travis/autogen.patch
     ./autogen.sh
     ./configure --prefix=$HOME/protoc
     make && make install
