@@ -1,5 +1,7 @@
 # Instant
 
+[![Build Status](https://travis-ci.org/okdshin/instant.svg?branch=master)](https://travis-ci.org/okdshin/instant)
+
 Instant is DNN inference library written in C++.
 
 Instant is released under MIT Licence.
