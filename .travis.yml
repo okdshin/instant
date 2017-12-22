@@ -11,10 +11,7 @@ addons:
             - g++-5
             - cmake-data
             - cmake
-            - libprotobuf-dev
             - libopencv-dev
-            - libprotoc-dev
-            - protobuf-compiler
 cache:
     directories:
         - $HOME/protoc
@@ -29,6 +26,6 @@ before_script:
 script:
     - mkdir build
     - cd build
-    - cmake -DPROTOC="$HOME/protoc/bin/protoc" ..
+    - cmake -DPROTOC="$HOME/protoc/bin/protoc" -DPROTOBUF_INCLUDE_DIR="$HOME/protoc/include" -DPROTOBUF_LIBRARY="$HOME/protoc/lib/libprotobuf.so" -DPROTOBUF_PROTOC_LIBRARY="$HOME/protoc/lib/libprotoc.so" ..
     - make
     - ./example/vgg16_example
