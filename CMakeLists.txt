@@ -14,17 +14,21 @@ include_directories("${PROJECT_SOURCE_DIR}/instant")
 
 # MKLDNN setup
 find_package(MKLDNN)
+if (NOT MKLDNN_FOUND)
+    message(FATAL_ERROR "MKLDNN is not found")
+endif()
+
 include_directories("${MKLDNN_INCLUDE_DIR}")
 
 if(${DISABLE_TEST})
-	set(ENABLE_TEST OFF)
+    set(ENABLE_TEST OFF)
 else()
-	set(ENABLE_TEST ON)
+    set(ENABLE_TEST ON)
 endif()
 if(${ENABLE_TEST})
-	include(cmake/gtest.cmake)
-	enable_testing()
-	add_subdirectory(test)
+    include(cmake/gtest.cmake)
+    enable_testing()
+    add_subdirectory(test)
 endif()
 
 add_subdirectory(example)
