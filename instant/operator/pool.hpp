@@ -2,10 +2,12 @@
 #define INSTANT_OPERATOR_POOL_HPP
 
 #include <instant/operator/common.hpp>
+#include <mkldnn.hpp>
 
 namespace instant {
 
-    inline auto make_max_pool_primitive(
+    template <mkldnn::algorithm pooling_alg>
+    inline auto make_pool_primitive(
       std::unordered_map<std::string, const mkldnn::memory> const&
       /*parameter_memory_table*/,
       std::unordered_map<std::string, std::tuple<const mkldnn::memory,
@@ -42,38 +44,64 @@ namespace instant {
           variable_memory_list;
         std::vector<std::pair<std::string, array>> output_name_and_arr_list;
 
-        auto max_pool_output_md =
+        auto pool_output_md =
           mkldnn::memory::desc({output_dims}, mkldnn::memory::data_type::f32,
                                mkldnn::memory::format::any);
 
-        auto max_pool_desc = mkldnn::pooling_forward::desc(
-          mkldnn::prop_kind::forward, mkldnn::pooling_max,
-          input_memory.get_primitive_desc().desc(), max_pool_output_md, strides,
+        auto pool_desc = mkldnn::pooling_forward::desc(
+          mkldnn::prop_kind::forward, pooling_alg,
+          input_memory.get_primitive_desc().desc(), pool_output_md, strides,
           kernel_shape, padding_l, padding_r, mkldnn::padding_kind::zero);
-        auto max_pool_pd =
-          mkldnn::pooling_forward::primitive_desc(max_pool_desc, engine);
+        auto pool_pd =
+          mkldnn::pooling_forward::primitive_desc(pool_desc, engine);
 
         std::vector<mkldnn::primitive> net;
 
-        auto max_pool_indices_memory =
-          mkldnn::memory(max_pool_pd.workspace_primitive_desc());
-        temp_variable_memory_list.push_back(max_pool_indices_memory);
+        auto pool_indices_memory =
+          mkldnn::memory(pool_pd.workspace_primitive_desc());
+        temp_variable_memory_list.push_back(pool_indices_memory);
 
-        manage_output_memory(required_output_set, output_name, dtype_t::float_,
-                             output_dims, input_origin_format,
-                             max_pool_pd.dst_primitive_desc(),
-                             variable_memory_list, temp_variable_memory_list,
-                             output_name_and_arr_list, net, engine,
-                             [&input_memory, &max_pool_indices_memory,
-                              &max_pool_pd](auto& op_output_memory) {
-                                 return mkldnn::pooling_forward(
-                                   max_pool_pd, input_memory, op_output_memory,
-                                   max_pool_indices_memory);
-                             });
+        manage_output_memory(
+          required_output_set, output_name, dtype_t::float_, output_dims,
+          input_origin_format, pool_pd.dst_primitive_desc(),
+          variable_memory_list, temp_variable_memory_list,
+          output_name_and_arr_list, net, engine,
+          [&input_memory, &pool_indices_memory,
+           &pool_pd](auto& op_output_memory) {
+              return mkldnn::pooling_forward(
+                pool_pd, input_memory, op_output_memory, pool_indices_memory);
+          });
 
         return std::make_tuple(net, variable_memory_list,
                                temp_variable_memory_list,
                                output_name_and_arr_list);
+    }
+
+    inline auto make_max_pool_primitive(
+      std::unordered_map<std::string, const mkldnn::memory> const&
+        parameter_memory_table,
+      std::unordered_map<std::string, std::tuple<const mkldnn::memory,
+                                                 mkldnn::memory::format>> const&
+        variable_memory_table,
+      std::set<std::string> const& required_output_set,
+      onnx::NodeProto const& node, mkldnn::engine const& engine) {
+        return make_pool_primitive<mkldnn::pooling_max>(
+          parameter_memory_table, variable_memory_table, required_output_set,
+          node, engine);
+    }
+
+    inline auto make_average_pool_primitive(
+      std::unordered_map<std::string, const mkldnn::memory> const&
+        parameter_memory_table,
+      std::unordered_map<std::string, std::tuple<const mkldnn::memory,
+                                                 mkldnn::memory::format>> const&
+        variable_memory_table,
+      std::set<std::string> const& required_output_set,
+      onnx::NodeProto const& node, mkldnn::engine const& engine) {
+        return make_pool_primitive<
+          mkldnn::pooling_avg_include_padding>( // TODO check
+          parameter_memory_table, variable_memory_table, required_output_set,
+          node, engine);
     }
 
 } // namespace instant

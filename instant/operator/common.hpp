@@ -65,6 +65,20 @@ namespace instant {
         return attr.i();
     }
 
+    inline auto load_attribute_float(
+      std::unordered_map<
+        std::string, std::reference_wrapper<const onnx::AttributeProto>> const&
+        attribute_table,
+      std::string const& attribute_name) {
+        onnx::AttributeProto const& attr =
+          find_value(attribute_table, attribute_name);
+        if(!attr.has_f()) {
+            throw std::runtime_error(
+              "Attribute load error: not float attribute");
+        }
+        return attr.f();
+    }
+
     inline auto load_2d_data_processing_attributes(
       std::unordered_map<
         std::string, std::reference_wrapper<const onnx::AttributeProto>> const&

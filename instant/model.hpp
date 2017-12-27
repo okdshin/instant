@@ -57,6 +57,49 @@ namespace instant {
                 memory_table.insert(make_parameter_memory_pair(
                   node, bias_index, mkldnn::memory::format::x, parameter_table,
                   engine));
+            } else if(node.op_type() == "BatchNormalization") {
+                constexpr auto scale_index = 1;
+                constexpr auto b_index = 2;
+                constexpr auto mean_index = 3;
+                constexpr auto var_index = 4;
+
+                auto const& scale_name = node.input(scale_index);
+                auto const& scale_arr = find_value(parameter_table, scale_name);
+                auto const& b_name = node.input(b_index);
+                auto const& b_arr = find_value(parameter_table, b_name);
+                mkldnn::memory::dims scale_dims(scale_arr.dims().begin(),
+                                                scale_arr.dims().end());
+                std::vector<int> weights_dims{{2}};
+                weights_dims.insert(weights_dims.end(), scale_dims.begin(),
+                                    scale_dims.end());
+                array weights_arr(dtype_t::float_, weights_dims);
+                std::copy(fbegin(scale_arr), fend(scale_arr),
+                          fbegin(weights_arr));
+                std::copy(fbegin(b_arr), fend(b_arr),
+                          fbegin(weights_arr) + calc_total_size(scale_dims));
+                temp_array_list.push_back(weights_arr);
+                auto weights_mem =
+                  mkldnn::memory({{{weights_dims},
+                                   mkldnn::memory::data_type::f32,
+                                   mkldnn::memory::format::nc},
+                                  engine},
+                                 weights_arr.data());
+                memory_table.insert({scale_name, weights_mem});
+
+                /*
+                memory_table.insert(make_parameter_memory_pair(
+                  node, scale_index, mkldnn::memory::format::x, parameter_table,
+                  engine));
+                memory_table.insert(make_parameter_memory_pair(
+                  node, b_index, mkldnn::memory::format::x, parameter_table,
+                  engine));
+                */
+                memory_table.insert(make_parameter_memory_pair(
+                  node, mean_index, mkldnn::memory::format::x, parameter_table,
+                  engine));
+                memory_table.insert(make_parameter_memory_pair(
+                  node, var_index, mkldnn::memory::format::x, parameter_table,
+                  engine));
             } else {
                 // TODO
                 /*
@@ -116,13 +159,23 @@ namespace instant {
     inline auto make_default_primitive_factory_table() {
         std::unordered_map<std::string, primitive_factory>
           primitive_factory_table;
+        // primitive_factory_table.insert({"Abs", make_abs_primitive});
+        primitive_factory_table.insert(
+          {"AveragePool", make_average_pool_primitive});
+        primitive_factory_table.insert(
+          {"BatchNormalization", make_batch_norm_primitive});
         primitive_factory_table.insert({"Conv", make_conv_primitive});
-        primitive_factory_table.insert({"Relu", make_relu_primitive});
-        primitive_factory_table.insert({"MaxPool", make_max_pool_primitive});
-        primitive_factory_table.insert({"Reshape", make_reshape_primitive});
-        primitive_factory_table.insert({"FC", make_fc_primitive});
         primitive_factory_table.insert({"Dropout", make_dropout_primitive});
+        primitive_factory_table.insert({"Elu", make_elu_primitive});
+        primitive_factory_table.insert({"FC", make_fc_primitive});
+        primitive_factory_table.insert(
+          {"LeakyRelu", make_leaky_relu_primitive});
+        primitive_factory_table.insert({"MaxPool", make_max_pool_primitive});
+        primitive_factory_table.insert({"Relu", make_relu_primitive});
+        primitive_factory_table.insert({"Reshape", make_reshape_primitive});
         primitive_factory_table.insert({"Softmax", make_softmax_primitive});
+        // primitive_factory_table.insert({"Sqrt", make_sqrt_primitive});
+        primitive_factory_table.insert({"Tanh", make_tanh_primitive});
         // TODO other primitives
         return primitive_factory_table;
     }
