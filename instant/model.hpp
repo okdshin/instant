@@ -16,21 +16,23 @@ namespace instant {
     inline auto make_parameter_memory_pair(
       onnx::NodeProto const& node, int param_index,
       mkldnn::memory::format format,
-      std::unordered_map<std::string, instant::array>& parameter_table,
+      std::unordered_map<std::string, instant::array> const& parameter_table,
       mkldnn::engine const& engine) {
         auto const& name = node.input(param_index);
-        auto& arr = find_value(parameter_table, name);
+        auto const& arr = find_value(parameter_table, name);
         mkldnn::memory::dims tz(arr.dims().begin(), arr.dims().end());
         auto mem = mkldnn::memory(
-          {{{tz}, mkldnn::memory::data_type::f32, format}, engine}, arr.data());
+          {{{tz}, mkldnn::memory::data_type::f32, format}, engine},
+          const_cast<void*>(arr.data()));
         return std::make_pair(name, mem);
     }
 
     inline auto make_parameter_memory_table(
       onnx::GraphProto const& graph,
-      std::unordered_map<std::string, instant::array>& parameter_table,
+      std::unordered_map<std::string, instant::array> const& parameter_table,
       mkldnn::engine const& engine) {
         std::unordered_map<std::string, const mkldnn::memory> memory_table;
+        std::vector<array> temp_array_list;
         for(auto const& node : graph.node()) {
             if(node.op_type() == "Conv") {
                 constexpr auto weight_index = 1;
@@ -63,8 +65,8 @@ namespace instant {
                 */
             }
         }
-        return memory_table;
-    }
+        return std::make_tuple(memory_table, temp_array_list);
+    } // namespace instant
 
     inline auto make_variable_memory_table(
       std::vector<std::tuple<std::string, instant::array,
@@ -100,8 +102,9 @@ namespace instant {
           std::vector<std::pair<std::string, array>>> // reqired output
                                                       // name and array
                                                       // list
-        (std::unordered_map<
-           std::string, const mkldnn::memory> const&, // parameter memory table
+        (std::unordered_map<std::string,
+                            const mkldnn::memory> const&, // parameter memory
+                                                          // table
          std::unordered_map<
            std::string,
            std::tuple<const mkldnn::memory,
