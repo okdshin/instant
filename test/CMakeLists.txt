@@ -1,5 +1,4 @@
 add_executable(instant_test
-    test_test.cpp
     np_io.cpp
     context.cpp
     onnx.cpp
