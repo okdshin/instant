@@ -34,6 +34,7 @@ namespace instant {
         if(mkldnn::memory::primitive_desc(pool_pd.dst_primitive_desc()) !=
            output_memory.get_primitive_desc()) {
             pool_output_memory = mkldnn::memory(pool_pd.dst_primitive_desc());
+            temp_variable_memory_list.push_back(output_memory);
         }
         if(pooling_alg == mkldnn::pooling_max) {
             auto pool_indices_memory =
