@@ -23,6 +23,16 @@ int main(int argc, char** argv) {
         for(int j = 0; j < tensor.dims_size(); ++j) {
             std::cout << tensor.dims(j) << " ";
         }
+        if(tensor.has_raw_data()) {
+            std::cout << " values: ";
+            auto f = static_cast<float const*>(static_cast<void const*>(tensor.raw_data().c_str()));
+            std::vector<float> floats;
+            std::copy(f, f+tensor.raw_data().length()/sizeof(float), std::back_inserter(floats));
+            auto max_value = *std::max_element(floats.begin(), floats.end());
+            auto min_value = *std::min_element(floats.begin(), floats.end());
+            std::cout << "min_value: " << min_value << " ";
+            std::cout << "max_value: " << max_value << " ";
+        }
         std::cout << "\n";
     }
     std::cout << "\n";

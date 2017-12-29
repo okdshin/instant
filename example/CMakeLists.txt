@@ -1,6 +1,6 @@
 find_package(OpenCV)
 if (NOT OpenCV_FOUND)
-	message(FATAL_ERROR "OpenCV not found. OpenCV is needed to build example.")
+	message(FATAL_ERROR "OpenCV is not found. OpenCV is needed to build example.")
 endif()
 include_directories(${OpenCV_INCLUDE_DIRS})
 add_executable(vgg16_example vgg16_example.cpp)

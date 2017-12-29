@@ -4,7 +4,7 @@ find_path(MKLDNN_INCLUDE_DIR
         /usr/include
         /usr/local/include)
 find_library(MKLDNN_LIBRARY
-    NAMES libmkldnn
+    NAMES mkldnn
     PATHS
         /usr/lib
         /usr/local/lib)

@@ -9,6 +9,7 @@ namespace instant {
     public:
         model(onnx::ModelProto const& onnx_model,
               std::unordered_map<std::string, array> const& parameter_table,
+              std::vector<array> const& temp_array_list,
               std::unordered_map<std::string, const mkldnn::memory> const&
                 parameter_memory_table,
               std::unordered_map<std::string, array> const& input_table,
@@ -24,6 +25,7 @@ namespace instant {
                 variable_memory_table,
               std::vector<mkldnn::memory> const& temp_variable_memory_list)
           : onnx_model_(onnx_model), parameter_table_(parameter_table),
+            temp_array_list_(temp_array_list),
             parameter_memory_table_(parameter_memory_table),
             input_table_(input_table), input_memory_table_(input_memory_table),
             output_table_(output_table), nets_(nets),
@@ -45,6 +47,7 @@ namespace instant {
     private:
         onnx::ModelProto onnx_model_;
         std::unordered_map<std::string, array> parameter_table_;
+        std::vector<array> temp_array_list_;
         std::unordered_map<std::string, const mkldnn::memory>
           parameter_memory_table_;
         std::unordered_map<std::string, array> input_table_;
@@ -67,8 +70,13 @@ namespace instant {
       std::vector<std::string> const& required_output_name_list,
       mkldnn::engine const& engine = ::instant::get_context().engine()) {
         auto parameter_table = make_parameter_table(onnx_model.graph());
-        auto parameter_memory_table = make_parameter_memory_table(
-          onnx_model.graph(), parameter_table, engine);
+        auto parameter_memory_table_and_temp_array_list =
+          make_parameter_memory_table(onnx_model.graph(), parameter_table,
+                                      engine);
+        auto& parameter_memory_table =
+          std::get<0>(parameter_memory_table_and_temp_array_list);
+        auto& temp_array_list =
+          std::get<1>(parameter_memory_table_and_temp_array_list);
 
         std::unordered_map<std::string, array> input_table;
         std::vector<std::tuple<std::string, array, mkldnn::memory::format>>
@@ -93,9 +101,10 @@ namespace instant {
         auto const& variable_memory_table = std::get<1>(temp_tuple);
         auto const& temp_variable_memory_list = std::get<2>(temp_tuple);
         auto const& output_table = std::get<3>(temp_tuple);
-        return model(onnx_model, parameter_table, parameter_memory_table,
-                     input_table, input_memory_table, output_table, nets,
-                     variable_memory_table, temp_variable_memory_list);
+        return model(onnx_model, parameter_table, temp_array_list,
+                     parameter_memory_table, input_table, input_memory_table,
+                     output_table, nets, variable_memory_table,
+                     temp_variable_memory_list);
     }
 
 } // namespace instant

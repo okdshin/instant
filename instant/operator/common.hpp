@@ -65,6 +65,20 @@ namespace instant {
         return attr.i();
     }
 
+    inline auto load_attribute_float(
+      std::unordered_map<
+        std::string, std::reference_wrapper<const onnx::AttributeProto>> const&
+        attribute_table,
+      std::string const& attribute_name) {
+        onnx::AttributeProto const& attr =
+          find_value(attribute_table, attribute_name);
+        if(!attr.has_f()) {
+            throw std::runtime_error(
+              "Attribute load error: not float attribute");
+        }
+        return attr.f();
+    }
+
     inline auto load_2d_data_processing_attributes(
       std::unordered_map<
         std::string, std::reference_wrapper<const onnx::AttributeProto>> const&
@@ -145,6 +159,15 @@ namespace instant {
             output_name_and_arr_list.emplace_back(output_name,
                                                   std::move(*output_arr_p));
         }
+    }
+
+    inline auto array_to_memory(array const& arr, mkldnn::memory::format format,
+                                mkldnn::engine const& engine) {
+        return mkldnn::memory({{{arr.dims()},
+                                dtype_t_to_mkldnn_memory_data_type(arr.dtype()),
+                                format},
+                               engine},
+                              const_cast<void*>(arr.data()));
     }
 
     inline auto make_conv_output_dims(mkldnn::memory::dims const& input_tz,
