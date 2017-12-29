@@ -7,6 +7,51 @@
 namespace instant {
 
     template <mkldnn::algorithm pooling_alg>
+    inline auto make_pool_net(mkldnn::memory const& input_memory,
+                              mkldnn::memory const& output_memory,
+                              std::vector<int> const& strides,
+                              std::vector<int> const& kernel_shape,
+                              std::vector<int> const& padding_l,
+                              std::vector<int> const& padding_r,
+                              mkldnn::engine const& engine) {
+        std::vector<mkldnn::primitive> net;
+        std::vector<mkldnn::memory> temp_variable_memory_list;
+        auto input_dims = extract_dims(input_memory);
+        auto output_channel_num = input_dims[1];
+        auto output_dims =
+          make_conv_output_dims(input_dims, output_channel_num, kernel_shape,
+                                strides, padding_l, padding_r);
+        auto pool_output_md =
+          mkldnn::memory::desc({output_dims}, mkldnn::memory::data_type::f32,
+                               mkldnn::memory::format::any);
+        auto pool_desc = mkldnn::pooling_forward::desc(
+          mkldnn::prop_kind::forward, pooling_alg,
+          input_memory.get_primitive_desc().desc(), pool_output_md, strides,
+          kernel_shape, padding_l, padding_r, mkldnn::padding_kind::zero);
+        auto pool_pd =
+          mkldnn::pooling_forward::primitive_desc(pool_desc, engine);
+        auto pool_output_memory = output_memory;
+        if(mkldnn::memory::primitive_desc(pool_pd.dst_primitive_desc()) !=
+           output_memory.get_primitive_desc()) {
+            pool_output_memory = mkldnn::memory(pool_pd.dst_primitive_desc());
+        }
+        if(pooling_alg == mkldnn::pooling_max) {
+            auto pool_indices_memory =
+              mkldnn::memory(pool_pd.workspace_primitive_desc());
+            temp_variable_memory_list.push_back(pool_indices_memory);
+            net.push_back(mkldnn::pooling_forward(
+              pool_pd, input_memory, pool_output_memory, pool_indices_memory));
+        } else {
+            net.push_back(mkldnn::pooling_forward(pool_pd, input_memory,
+                                                  pool_output_memory));
+        }
+        if(pool_output_memory != output_memory) {
+            net.push_back(mkldnn::reorder(pool_output_memory, output_memory));
+        }
+        return std::make_tuple(net, temp_variable_memory_list);
+    }
+
+    template <mkldnn::algorithm pooling_alg>
     inline auto make_pool_primitive(
       std::unordered_map<std::string, const mkldnn::memory> const&
       /*parameter_memory_table*/,

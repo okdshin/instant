@@ -161,6 +161,15 @@ namespace instant {
         }
     }
 
+    inline auto array_to_memory(array const& arr, mkldnn::memory::format format,
+                                mkldnn::engine const& engine) {
+        return mkldnn::memory({{{arr.dims()},
+                                dtype_t_to_mkldnn_memory_data_type(arr.dtype()),
+                                format},
+                               engine},
+                              const_cast<void*>(arr.data()));
+    }
+
     inline auto make_conv_output_dims(mkldnn::memory::dims const& input_tz,
                                       int output_channel_num,
                                       mkldnn::memory::dims const& kernel_shape,

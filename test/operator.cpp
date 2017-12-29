@@ -9,220 +9,67 @@
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
-#include <instant/model.hpp>
+#include "common.hpp"
+#include "np_io.hpp"
+
+#include <instant/operator.hpp>
 
 namespace instant {
     namespace {
 
-        class OperatorTest : public ::testing::Test {};
-
-        TEST_F(OperatorTest, vgg16_test) {
-            auto onnx_model = instant::load_onnx("../data/VGG16.onnx");
-            auto batch_size = 1;
-            auto parameter_table = make_parameter_table(onnx_model.graph());
-            auto parameter_memory_table_and_temp_array_list =
-              make_parameter_memory_table(onnx_model.graph(), parameter_table,
-                                          ::instant::get_context().engine());
-            auto& parameter_memory_table =
-              std::get<0>(parameter_memory_table_and_temp_array_list);
-            auto& temp_array_list =
-              std::get<1>(parameter_memory_table_and_temp_array_list);
-
-            std::vector<
-              std::tuple<std::string, instant::array, mkldnn::memory::format>>
-              input_list{std::make_tuple(
-                "140326425860192",
-                instant::uniforms(instant::dtype_t::float_,
-                                  {batch_size, 3, 224, 224}, 1.f),
-                mkldnn::memory::format::nchw)};
-            auto variable_memory_table = instant::make_variable_memory_table(
-              input_list, ::instant::get_context().engine());
-
-            std::vector<std::string> required_output_name_list{
-              "140326201105432", // conv1_1
-              "140326201105600", // conv1_2
-              "140326429223512", // pool1
-              "140326150903400", // conv2_1
-              "140326200661440", // conv2_2
-              "140326200661720", // pool2
-              "140326200662112", // conv3_1
-              "140326200662560", // conv3_2
-              "140326200663008", // conv3_3
-              "140326200663288", // pool3
-              "140326200663680", // conv4_1
-              "140326200774784", // conv4_2
-              "140326200775232", // conv4_3
-              "140326200775512", // pool4
-              "140326200775904", // conv5_1
-              "140326200776352", // conv5_2
-              "140326200776800", // conv5_3
-              "140326200777080", // pool5
-              "140326200777976", // fc6
-              "140326200778648", // fc7
-              "140326200803456", // fc8
-              "140326200803680", // prob
-            };
-            auto output_table = run_model(
-              onnx_model.graph(), parameter_memory_table, variable_memory_table,
-              std::set<std::string>(required_output_name_list.begin(),
-                                    required_output_name_list.end()));
-
-            std::ifstream ifs("../data/vgg16_values_result.txt");
-            EXPECT_TRUE(ifs);
-            for(auto const& layer : required_output_name_list) {
-                auto const& data = output_table[layer];
-
-                std::string line;
-                std::getline(ifs, line);
-                std::istringstream iss(line);
-                std::vector<float> true_values;
-                std::string layer_name;
-                iss >> layer_name;
-                for(int j = 0; j < instant::total_size(data); ++j) {
-                    float v;
-                    iss >> v;
-                    true_values.push_back(v);
-                }
-
-                for(int i = 0; i < instant::total_size(data); ++i) {
-                    auto x = *(static_cast<float const*>(data.data()) + i);
-                    auto t = true_values[i];
-                    ASSERT_NEAR(t, x, 10e-4) << layer << " " << i;
-                }
-            }
-        }
-
-        TEST_F(OperatorTest, resnet50_test) {
-            auto onnx_model = instant::load_onnx("../data/ResNet50.onnx");
-            auto batch_size = 1;
-            auto parameter_table = make_parameter_table(onnx_model.graph());
-            auto parameter_memory_table_and_temp_array_list =
-              make_parameter_memory_table(onnx_model.graph(), parameter_table,
-                                          ::instant::get_context().engine());
-            auto& parameter_memory_table =
-              std::get<0>(parameter_memory_table_and_temp_array_list);
-            auto& temp_array_list =
-              std::get<1>(parameter_memory_table_and_temp_array_list);
-            std::cout << "parameter memory table" << std::endl;
-            for(auto const& p : parameter_memory_table) {
-                std::cout << p.first << std::endl;
+        class OperatorTest : public ::testing::Test {
+        protected:
+            OperatorTest() = default;
+            virtual void SetUp() {
+                input_ = instant::load_np_array_as_array(
+                  "../data/input_3_5_64_64.txt");
+                engine_ = get_context().engine();
             }
 
-            std::vector<
-              std::tuple<std::string, instant::array, mkldnn::memory::format>>
-              input_list{std::make_tuple(
-                "140555732057560",
-                instant::uniforms(instant::dtype_t::float_,
-                                  {batch_size, 3, 224, 224}, 1.f),
-                mkldnn::memory::format::nchw)};
-            auto variable_memory_table = instant::make_variable_memory_table(
-              input_list, ::instant::get_context().engine());
-
-            std::vector<std::string> required_output_name_list{
-              "140555506372504", // conv1
-              "140555734620144", // pool1
-            };
-            auto output_table = run_model(
-              onnx_model.graph(), parameter_memory_table, variable_memory_table,
-              std::set<std::string>(required_output_name_list.begin(),
-                                    required_output_name_list.end()));
-
-            std::ifstream ifs("../data/resnet50_values_result.txt");
-            EXPECT_TRUE(ifs);
-            for(auto const& layer : required_output_name_list) {
-                auto const& data = output_table[layer];
-
-                std::string line;
-                std::getline(ifs, line);
-                std::istringstream iss(line);
-                std::vector<float> true_values;
-                std::string layer_name;
-                iss >> layer_name;
-                for(int j = 0; j < instant::total_size(data); ++j) {
-                    float v;
-                    iss >> v;
-                    true_values.push_back(v);
-                }
-
-                ASSERT_EQ(instant::total_size(data), true_values.size());
-                std::cout << *(static_cast<float const*>(data.data()) + 56) << std::endl;
-                for(int i = 0; i < instant::total_size(data); ++i) {
-                    auto x = *(static_cast<float const*>(data.data()) + i);
-                    auto t = true_values.at(i);
-                   // std::cout << x << " " << t << std::endl;
-                    ASSERT_NEAR(t, x, 10e-4) << layer << " " << i;
-                }
-                std::cout << "here" << std::endl;
+            template <mkldnn::algorithm pooling_alg>
+            auto pool_test_template(int k, int s, int p) const {
+                auto input_memory = array_to_memory(
+                  input_, mkldnn::memory::format::nchw, engine_);
+                std::vector<int> stride{{s, s}};
+                std::vector<int> kernel_shape{{k, k}};
+                std::vector<int> padding_l{{p, p}};
+                auto padding_r = padding_l;
+                auto output_dims = make_conv_output_dims(
+                  input_.dims(), input_.dims()[1], kernel_shape, stride,
+                  padding_l, padding_r);
+                auto output = array(dtype_t::float_, output_dims);
+                auto output_memory = array_to_memory(
+                  output, mkldnn::memory::format::nchw, engine_);
+                auto net_and_temp_vars = make_pool_net<pooling_alg>(
+                  input_memory, output_memory, stride, kernel_shape, padding_l,
+                  padding_r, engine_);
+                auto& net = std::get<0>(net_and_temp_vars);
+                auto& temp_vars = std::get<1>(net_and_temp_vars);
+                mkldnn::stream(mkldnn::stream::kind::eager).submit(net).wait();
+                auto pooling_type_str = (pooling_alg == mkldnn::pooling_max
+                                           ? std::string("max_pool")
+                                           : std::string("average_pool"));
+                auto true_output = instant::load_np_array_as_array(
+                  "../data/" + pooling_type_str + "_" + std::to_string(k) +
+                  "_" + std::to_string(s) + "_" + std::to_string(p) + ".txt");
+                assert_near_list(fbegin(output), fend(output),
+                                 fbegin(true_output), fend(true_output),
+                                 10.e-4);
             }
-        }
 
-        /*
+            array input_;
+            mkldnn::engine engine_{get_context().engine()};
+        };
+
         TEST_F(OperatorTest, max_pool_test) {
-            auto batch_size = 1;
-            std::vector<
-              std::tuple<std::string, instant::array, mkldnn::memory::format>>
-              input_list{std::make_tuple(
-                "140326425860192",
-                instant::uniforms(instant::dtype_t::float_,
-                                  {batch_size, 3, 224, 224}, 1.f),
-                mkldnn::memory::format::nchw)};
-            auto variable_memory_table = instant::make_variable_memory_table(
-              input_list, ::instant::get_context().engine());
-
-            std::vector<std::string> required_output_name_list{
-              "140326201105432", // conv1_1
-              "140326201105600", // conv1_2
-              "140326429223512", // pool1
-              "140326150903400", // conv2_1
-              "140326200661440", // conv2_2
-              "140326200661720", // pool2
-              "140326200662112", // conv3_1
-              "140326200662560", // conv3_2
-              "140326200663008", // conv3_3
-              "140326200663288", // pool3
-              "140326200663680", // conv4_1
-              "140326200774784", // conv4_2
-              "140326200775232", // conv4_3
-              "140326200775512", // pool4
-              "140326200775904", // conv5_1
-              "140326200776352", // conv5_2
-              "140326200776800", // conv5_3
-              "140326200777080", // pool5
-              "140326200777976", // fc6
-              "140326200778648", // fc7
-              "140326200803456", // fc8
-              "140326200803680", // prob
-            };
-            auto output_table = run_model(
-              onnx_model.graph(), parameter_memory_table, variable_memory_table,
-              std::set<std::string>(required_output_name_list.begin(),
-                                    required_output_name_list.end()));
-
-            std::ifstream ifs("../data/vgg16_values_result.txt");
-            EXPECT_TRUE(ifs);
-            for(auto const& layer : required_output_name_list) {
-                auto const& data = output_table[layer];
-
-                std::string line;
-                std::getline(ifs, line);
-                std::istringstream iss(line);
-                std::vector<float> true_values;
-                std::string layer_name;
-                iss >> layer_name;
-                for(int j = 0; j < instant::total_size(data); ++j) {
-                    float v;
-                    iss >> v;
-                    true_values.push_back(v);
-                }
-
-                for(int i = 0; i < instant::total_size(data); ++i) {
-                    auto x = *(static_cast<float const*>(data.data()) + i);
-                    auto t = true_values[i];
-                    ASSERT_NEAR(t, x, 10e-4) << layer << " " << i;
-                }
-            }
+            pool_test_template<mkldnn::pooling_max>(2, 2, 0);
+            pool_test_template<mkldnn::pooling_max>(3, 2, 0);
         }
-        */
+
+        TEST_F(OperatorTest, average_pool_test) {
+            pool_test_template<mkldnn::pooling_avg_include_padding>(2, 2, 0);
+            pool_test_template<mkldnn::pooling_avg_include_padding>(3, 2, 0);
+        }
 
     } // namespace
 } // namespace instant
