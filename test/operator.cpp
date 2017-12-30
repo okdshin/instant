@@ -44,7 +44,8 @@ namespace instant {
                   input_memory, output_memory, stride, kernel_shape, padding_l,
                   padding_r, engine_);
                 auto& net = std::get<0>(net_and_temp_vars);
-                auto& temp_vars = std::get<1>(net_and_temp_vars);
+                [[maybe_unused]] auto& temp_vars =
+                  std::get<1>(net_and_temp_vars);
                 mkldnn::stream(mkldnn::stream::kind::eager).submit(net).wait();
                 auto pooling_type_str = (pooling_alg == mkldnn::pooling_max
                                            ? std::string("max_pool")

@@ -1,5 +1,5 @@
 #include "../external/cmdline.h"
-#include <instant/load_onnx.hpp>
+#include <instant/onnx.hpp>
 
 int main(int argc, char** argv) {
     if(argc == 1) {
@@ -7,7 +7,7 @@ int main(int argc, char** argv) {
         return 0;
     }
     auto onnx_model_path = argv[1];
-    auto onnx_model = instant::load_onnx(onnx_model_path);
+    auto onnx_model = instant::load_onnx_model(onnx_model_path);
 
     std::cout << "ONNX version is " << onnx_model.ir_version() << std::endl;
     std::cout << "domain is " << onnx_model.domain() << std::endl;

@@ -17,6 +17,7 @@
 
 #include <instant/array.hpp>
 #include <instant/dtype.hpp>
+#include <instant/graph.hpp>
 #include <instant/onnx.pb.h>
 
 namespace instant {
@@ -105,7 +106,7 @@ namespace instant {
     }
     */
 
-    inline auto load_onnx(std::string const& filename) {
+    inline auto load_onnx_model(std::string const& filename) {
         namespace gpio = ::google::protobuf::io;
 
         std::ifstream ifs(filename);
@@ -113,7 +114,6 @@ namespace instant {
         gpio::CodedInputStream cis(&iis);
         cis.SetTotalBytesLimit(std::numeric_limits<int>::max(),
                                std::numeric_limits<int>::max());
-
         onnx::ModelProto onnx_model;
         if(!onnx_model.ParseFromCodedStream(&cis)) {
             throw onnx_load_error("ONNX parse error");
@@ -121,21 +121,17 @@ namespace instant {
         return onnx_model;
     }
 
-    // TODO avoid copy
-    /*
-    inline auto make_parameter_table(onnx::GraphProto const& graph) {
-        std::unordered_map<std::string,
-                           std::reference_wrapper<const onnx::TensorProto>>
-          parameter_table;
-        for(auto const& initializer : graph.initializer()) {
-            parameter_table.insert(
-              {initializer.name(), std::cref(initializer)});
+    inline auto
+    tensor_proto_data_type_to_dtype_t(onnx::TensorProto_DataType tpdt) {
+        if(tpdt == onnx::TensorProto_DataType_FLOAT) {
+            return dtype_t::float_;
         }
-        return parameter_table;
+        throw std::runtime_error("Not implemented data type: " +
+                                 std::to_string(tpdt));
     }
-    */
 
-    inline auto make_parameter_table(onnx::GraphProto const& graph) {
+    inline auto
+    make_parameter_table_from_onnx_graph(onnx::GraphProto const& graph) {
         std::unordered_map<std::string, instant::array> parameter_table;
         for(int i = 0; i < graph.initializer_size(); ++i) {
             auto tensor = graph.initializer(i);
@@ -166,14 +162,46 @@ namespace instant {
         return parameter_table;
     }
 
-    inline auto make_attribute_table(onnx::NodeProto const& node) {
-        std::unordered_map<std::string,
-                           std::reference_wrapper<const onnx::AttributeProto>>
-          attribute_table;
-        for(auto const& attr : node.attribute()) {
-            attribute_table.insert({attr.name(), std::cref(attr)});
+    inline auto make_graph_from_onnx_graph(onnx::GraphProto const& graph) {
+        instant::graph g;
+        for(auto const& onnx_node : graph.node()) {
+            std::unordered_map<std::string, attribute> attribute_table;
+            for(auto const& attr : onnx_node.attribute()) {
+                if(attr.type() == onnx::AttributeProto_AttributeType_INT) {
+                    attribute_table.insert(
+                      {attr.name(), static_cast<int>(attr.i())}); // TODO int64
+                } else if(attr.type() ==
+                          onnx::AttributeProto_AttributeType_FLOAT) {
+                    attribute_table.insert({attr.name(), attr.f()});
+                } else if(attr.type() ==
+                          onnx::AttributeProto_AttributeType_INTS) {
+                    attribute_table.insert(
+                      {attr.name(), std::vector<int>(attr.ints().begin(),
+                                                     attr.ints().end())});
+                } else if(attr.type() ==
+                          onnx::AttributeProto_AttributeType_FLOATS) {
+                    attribute_table.insert(
+                      {attr.name(), std::vector<float>(attr.floats().begin(),
+                                                       attr.floats().end())});
+                }
+            }
+            instant::node n(string_to_op_type_t(onnx_node.op_type()),
+                            std::vector<std::string>(onnx_node.input().begin(),
+                                                     onnx_node.input().end()),
+                            std::vector<std::string>(onnx_node.output().begin(),
+                                                     onnx_node.output().end()),
+                            attribute_table);
+            g.push_back(std::set{n}); // TODO serialize correctly
         }
-        return attribute_table;
+        return g;
+    }
+
+    inline auto load_onnx(std::string const& filename) {
+        auto onnx_model = load_onnx_model(filename);
+        auto param_table =
+          make_parameter_table_from_onnx_graph(onnx_model.graph());
+        auto graph = make_graph_from_onnx_graph(onnx_model.graph());
+        return std::make_tuple(param_table, graph);
     }
 
 } // namespace instant

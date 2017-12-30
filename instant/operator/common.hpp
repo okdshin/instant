@@ -1,6 +1,7 @@
 #ifndef INSTANT_OPERATOR_COMMON_HPP
 #define INSTANT_OPERATOR_COMMON_HPP
 
+#include <string>
 #include <unordered_map>
 
 #include <mkldnn.hpp>
@@ -8,30 +9,9 @@
 #include <instant/array.hpp>
 #include <instant/context.hpp>
 #include <instant/load_onnx.hpp>
+#include <instant/utility.hpp>
 
 namespace instant {
-
-    template <typename T>
-    auto const& find_value(std::unordered_map<std::string, T> const& m,
-                           std::string const& key) {
-        // std::cout << key << std::endl;
-        auto found = m.find(key);
-        if(found == m.end()) {
-            throw std::runtime_error("not found: " + key);
-        }
-        return found->second;
-    }
-
-    template <typename T>
-    auto& find_value(std::unordered_map<std::string, T>& m,
-                     std::string const& key) {
-        // std::cout << key << std::endl;
-        auto found = m.find(key);
-        if(found == m.end()) {
-            throw std::runtime_error("not found: " + key);
-        }
-        return found->second;
-    }
 
     inline auto extract_dims(mkldnn::memory const& m) {
         auto const& d = m.get_primitive_desc().desc().data;

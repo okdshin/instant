@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "common.hpp"
+#include "./common.hpp"
 #include "np_io.hpp"
 
 namespace instant {
