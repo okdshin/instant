@@ -1,6 +1,7 @@
 include(ExternalProject)
 set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/external)
 set(ONNX_DIR ${EXTERNAL_DIR}/onnx)
+set(Protobuf_PROTOC_EXECUTABLE protoc CACHE STRING "protoc path")
 
 include(FindProtobuf)
 find_package(Protobuf REQUIRED)
