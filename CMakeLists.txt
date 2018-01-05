@@ -31,7 +31,7 @@ if(${ENABLE_TEST})
     add_subdirectory(test)
 endif()
 
-add_subdirectory(example)
+#add_subdirectory(example)
 add_subdirectory(tool)
 add_subdirectory(instant)
 

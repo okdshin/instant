@@ -146,15 +146,18 @@ namespace instant {
         while(!required_output_name_set.empty()) {
             std::set<std::string> next_required_output_name_set;
             for(auto const& required_output_name : required_output_name_set) {
+                // Search node that issues required output
                 auto needed_node_iter = std::find_if(
-                  node_set.begin(), node_set.end(), [&required_output_name](auto const& node) {
+                  node_set.begin(), node_set.end(),
+                  [&required_output_name](auto const& node) {
                       return std::any_of(
                         node.output().begin(), node.output().end(),
                         [&required_output_name](auto const& output_name) {
                             return output_name == required_output_name;
                         });
                   });
-                if(needed_node_iter == node_set.end()) {
+                if(needed_node_iter ==
+                   node_set.end()) { // When not found, required_output is input
                     needed_input_name_set.insert(required_output_name);
                 } else {
                     needed_node_set.insert(*needed_node_iter);
@@ -196,6 +199,24 @@ namespace instant {
             graph.push_back(current_node_set);
         }
         return graph;
+    }
+
+    inline auto extract_needed_parameter_name_set(
+      std::set<node> const& node_set,
+      std::set<std::string> given_input_name_set) {
+        std::set<std::string> input_name_set;
+        for(auto const& node : node_set) {
+            input_name_set.insert(node.input().begin(), node.input().end());
+            given_input_name_set.insert(node.output().begin(),
+                                        node.output().end());
+        }
+        std::set<std::string> needed_parameter_name_set;
+        std::set_difference(input_name_set.begin(), input_name_set.end(),
+                            given_input_name_set.begin(),
+                            given_input_name_set.end(),
+                            std::inserter(needed_parameter_name_set,
+                                          needed_parameter_name_set.end()));
+        return needed_parameter_name_set;
     }
 
     inline auto make_variable_dims_table(
