@@ -51,6 +51,15 @@ namespace instant {
                                  std::to_string(tpdt));
     }
 
+    inline auto extract_parameter_name_set(onnx::GraphProto const& graph) {
+        std::set<std::string> parameter_name_set;
+        for(int i = 0; i < graph.initializer_size(); ++i) {
+            auto tensor = graph.initializer(i);
+            parameter_name_set.insert(tensor.name());
+        }
+        return parameter_name_set;
+    }
+
     inline auto make_parameter_table_from_onnx_graph(
       onnx::GraphProto const& graph,
       std::set<std::string> const& needed_parameter_name_set) {
@@ -129,14 +138,28 @@ namespace instant {
         auto onnx_model = load_onnx_model(filename);
         auto raw_node_set =
           extract_node_set_from_onnx_graph(onnx_model.graph());
-        auto[node_set, input_name_set] =
-          extract_needed_node_set_and_input_name_set(raw_node_set,
-                                                     required_output_name_set);
-        auto graph = make_graph(node_set, input_name_set);
-        auto needed_parameter_name_set =
-          extract_needed_parameter_name_set(node_set, input_name_set);
+        auto parameter_name_set =
+          extract_parameter_name_set(onnx_model.graph());
+        std::cout << "parameter_name_set" << std::endl;
+        for(auto const& parameter_name : parameter_name_set) {
+            std::cout << parameter_name << std::endl;
+        }
+        auto needed_node_set =
+          extract_needed_node_set(raw_node_set, required_output_name_set);
+        auto needed_input_name_set =
+          extract_needed_input_name_set(needed_node_set, parameter_name_set);
+        std::cout << "needed_input_name_set" << std::endl;
+        for(auto const& input_name : needed_input_name_set) {
+            std::cout << input_name << std::endl;
+        }
+        auto needed_parameter_name_set = extract_needed_parameter_name_set(
+          needed_node_set, needed_input_name_set);
+        std::cout << "here" << std::endl;
+        auto graph = make_graph(needed_node_set, needed_input_name_set, needed_parameter_name_set);
+        std::cout << "here" << std::endl;
         auto parameter_table = make_parameter_table_from_onnx_graph(
           onnx_model.graph(), needed_parameter_name_set);
+        std::cout << "here" << std::endl;
         return std::make_tuple(graph, parameter_table);
     }
 

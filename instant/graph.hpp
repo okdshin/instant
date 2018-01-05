@@ -138,11 +138,10 @@ namespace instant {
         return parameter_dims.at(0); // o of oihw
     }
 
-    inline auto extract_needed_node_set_and_input_name_set(
-      std::set<node> const& node_set,
-      std::set<std::string> required_output_name_set) {
+    inline auto
+    extract_needed_node_set(std::set<node> const& node_set,
+                            std::set<std::string> required_output_name_set) {
         std::set<node> needed_node_set;
-        std::set<std::string> needed_input_name_set;
         while(!required_output_name_set.empty()) {
             std::set<std::string> next_required_output_name_set;
             for(auto const& required_output_name : required_output_name_set) {
@@ -156,10 +155,7 @@ namespace instant {
                             return output_name == required_output_name;
                         });
                   });
-                if(needed_node_iter ==
-                   node_set.end()) { // When not found, required_output is input
-                    needed_input_name_set.insert(required_output_name);
-                } else {
+                if(needed_node_iter != node_set.end()) {
                     needed_node_set.insert(*needed_node_iter);
                     next_required_output_name_set.insert(
                       needed_node_iter->input().begin(),
@@ -168,26 +164,31 @@ namespace instant {
             }
             required_output_name_set = next_required_output_name_set;
         }
-        return std::make_tuple(needed_node_set, needed_input_name_set);
+        return needed_node_set;
     }
 
     inline auto make_graph(std::set<node> node_set,
-                           std::set<std::string> const& input_name_set) {
-        auto available_variable_name_set = input_name_set;
+                           std::set<std::string> const& given_input_name_set,
+                           std::set<std::string> const& parameter_name_set) {
+        auto available_value_name_set = given_input_name_set;
+        available_value_name_set.insert(parameter_name_set.begin(),
+                                           parameter_name_set.end());
         instant::graph graph;
         while(!node_set.empty()) {
             std::set<node> next_node_set;
-            auto next_available_variable_name_set = available_variable_name_set;
+            auto next_available_value_name_set = available_value_name_set;
             std::set<node> current_node_set;
             for(auto const& node : node_set) {
-                std::vector<std::string> unavailable_variable_name_list;
+                std::vector<std::string> unavailable_value_name_list;
+                std::set<std::string> input_name_set(node.input().begin(),
+                                                     node.input().end());
                 std::set_difference(
-                  node.input().begin(), node.input().end(),
-                  available_variable_name_set.begin(),
-                  available_variable_name_set.end(),
-                  std::back_inserter(unavailable_variable_name_list));
-                if(unavailable_variable_name_list.empty()) {
-                    next_available_variable_name_set.insert(
+                  input_name_set.begin(), input_name_set.end(),
+                  available_value_name_set.begin(),
+                  available_value_name_set.end(),
+                  std::back_inserter(unavailable_value_name_list));
+                if(unavailable_value_name_list.empty()) {
+                    next_available_value_name_set.insert(
                       node.output().begin(), node.output().end());
                     current_node_set.insert(node);
                 } else {
@@ -195,10 +196,27 @@ namespace instant {
                 }
             }
             node_set = next_node_set;
-            available_variable_name_set = next_available_variable_name_set;
+            available_value_name_set = next_available_value_name_set;
             graph.push_back(current_node_set);
         }
         return graph;
+    }
+
+    inline auto
+    extract_needed_input_name_set(std::set<node> const& node_set,
+                                  std::set<std::string> parameter_name_set) {
+        std::set<std::string> input_name_set;
+        for(auto const& node : node_set) {
+            input_name_set.insert(node.input().begin(), node.input().end());
+            parameter_name_set.insert(node.output().begin(),
+                                      node.output().end());
+        }
+        std::set<std::string> needed_input_name_set;
+        std::set_difference(
+          input_name_set.begin(), input_name_set.end(),
+          parameter_name_set.begin(), parameter_name_set.end(),
+          std::inserter(needed_input_name_set, needed_input_name_set.end()));
+        return needed_input_name_set;
     }
 
     inline auto extract_needed_parameter_name_set(

@@ -15,7 +15,8 @@ namespace {
 class ONNXTest : public ::testing::Test {};
 
 TEST_F(ONNXTest, load_onnx_model) {
-    auto [graph, param_table] = instant::load_onnx("../data/VGG16.onnx", {"140326200803680"});
+    auto [graph, param_table] = instant::load_onnx("../data/VGG16.onnx", {"140326201105432", /*"140326200803456"*//*, "140326200803680"*/});
+    std::cout << "param table" << std::endl;
     for(auto [name, arr] : param_table) {
         std::cout << name << " ";
        for(auto d : arr.dims()) {
@@ -23,6 +24,7 @@ TEST_F(ONNXTest, load_onnx_model) {
        }
        std::cout << "\n";
     }
+    std::cout << "graph" << std::endl;
     for(auto const& node_set : graph) {
         for(auto const& node : node_set) {
             std::cout << op_type_to_string(node.op_type()) << " ";
