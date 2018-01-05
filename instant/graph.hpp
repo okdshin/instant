@@ -6,6 +6,7 @@
 #include <variant>
 #include <vector>
 
+#include <instant/array.hpp>
 #include <instant/op_type.hpp>
 #include <instant/utility.hpp>
 
@@ -106,10 +107,10 @@ namespace instant {
         auto iw = input_dims[3];
         auto kh = kernel_shape[0];
         auto kw = kernel_shape[1];
-        return mkldnn::memory::dims(
+        return std::vector<int>(
           {batch_size, output_channel_num,
-           calc_length(ih, kh, pads[0], pads[2], stride[0]),
-           calc_length(iw, kw, pads[1], pads[3], stride[1])});
+           calc_length(ih, kh, pads[0], pads[2], strides[0]),
+           calc_length(iw, kw, pads[1], pads[3], strides[1])});
     }
 
     inline auto
@@ -137,37 +138,37 @@ namespace instant {
         return parameter_dims.at(0); // o of oihw
     }
 
-    inline auto extract_needed_nodes_and_input_names(
-      std::vector<node> const& node_list,
-      std::vector<std::string> required_output_name_list) {
+    inline auto extract_needed_node_set_and_input_name_set(
+      std::set<node> const& node_set,
+      std::set<std::string> required_output_name_set) {
         std::set<node> needed_node_set;
         std::set<std::string> needed_input_name_set;
-        while(!required_output_name_list.empty()) {
-            std::vector<std::string> next_required_output_name_list;
-            for(auto const& required_output_name : required_output_name_list) {
-                auto needed_node_iter = std::find(
-                  node_list.begin(), node_list.end(), [](auto const& node) {
+        while(!required_output_name_set.empty()) {
+            std::set<std::string> next_required_output_name_set;
+            for(auto const& required_output_name : required_output_name_set) {
+                auto needed_node_iter = std::find_if(
+                  node_set.begin(), node_set.end(), [&required_output_name](auto const& node) {
                       return std::any_of(
                         node.output().begin(), node.output().end(),
                         [&required_output_name](auto const& output_name) {
                             return output_name == required_output_name;
                         });
                   });
-                if(needed_node_iter == node_list.end()) {
+                if(needed_node_iter == node_set.end()) {
                     needed_input_name_set.insert(required_output_name);
                 } else {
                     needed_node_set.insert(*needed_node_iter);
-                    next_required_output_name_list.insert(
+                    next_required_output_name_set.insert(
                       needed_node_iter->input().begin(),
                       needed_node_iter->input().end());
                 }
             }
-            required_output_name_list = next_required_output_name_list;
+            required_output_name_set = next_required_output_name_set;
         }
         return std::make_tuple(needed_node_set, needed_input_name_set);
     }
 
-    inline auto make_graph(std::set<node> const& node_set,
+    inline auto make_graph(std::set<node> node_set,
                            std::set<std::string> const& input_name_set) {
         auto available_variable_name_set = input_name_set;
         instant::graph graph;

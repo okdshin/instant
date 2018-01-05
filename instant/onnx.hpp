@@ -185,7 +185,7 @@ namespace instant {
                                                        attr.floats().end())});
                 }
             }
-            instant::node n(string_to_op_type_t(onnx_node.op_type()),
+            instant::node n(string_to_op_type(onnx_node.op_type()),
                             std::vector<std::string>(onnx_node.input().begin(),
                                                      onnx_node.input().end()),
                             std::vector<std::string>(onnx_node.output().begin(),

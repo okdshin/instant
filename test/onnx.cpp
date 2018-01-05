@@ -25,7 +25,7 @@ TEST_F(ONNXTest, load_onnx_model) {
     }
     for(auto const& node_set : graph) {
         for(auto const& node : node_set) {
-            std::cout << op_type_t_to_string(node.op_type()) << " ";
+            std::cout << op_type_to_string(node.op_type()) << " ";
         }
         std::cout << std::endl;
     }

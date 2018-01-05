@@ -8,7 +8,7 @@
 
 #include <instant/array.hpp>
 #include <instant/context.hpp>
-#include <instant/load_onnx.hpp>
+#include <instant/onnx.hpp>
 #include <instant/utility.hpp>
 
 namespace instant {

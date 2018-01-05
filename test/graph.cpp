@@ -2,7 +2,7 @@
 
 #include <instant/graph.hpp>
 
-#include "common.hpp"
+#include "./common.hpp"
 
 namespace instant {
 
