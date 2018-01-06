@@ -29,17 +29,20 @@ namespace instant {
         auto const& input(int index) const {
             return input_name_list_.at(index);
         }
-        auto input_num() const { return input_name_list_.size(); }
         auto const& input() const { return input_name_list_; }
 
         auto const& output(int index) const {
             return output_name_list_.at(index);
         }
-        auto output_num() const { return output_name_list_.size(); }
         auto const& output() const { return output_name_list_; }
 
         template <typename AttributeType>
         auto const& attribute(std::string const& attr_name) const {
+            std::cout << "--";
+            for(auto const& [name, value] : attribute_table_) {
+                std::cout << name << " ";
+            }
+            std::cout << "\n";
             return std::get<AttributeType>(
               find_value(attribute_table_, attr_name));
         }
@@ -52,18 +55,18 @@ namespace instant {
     };
 
     inline auto operator<(node const& a, node const& b) {
-        if(a.input_num() != b.input_num()) {
-            return a.input_num() < b.input_num();
+        if(a.input().size() != b.input().size()) {
+            return a.input().size() < b.input().size();
         }
-        for(auto i = 0; i < a.input_num(); ++i) {
+        for(auto i = 0; i < a.input().size(); ++i) {
             if(a.input(i) != b.input(i)) {
                 return a.input(i) < b.input(i);
             }
         }
-        if(a.output_num() != b.output_num()) {
-            return a.output_num() < b.output_num();
+        if(a.output().size() != b.output().size()) {
+            return a.output().size() < b.output().size();
         }
-        for(auto i = 0; i < a.output_num(); ++i) {
+        for(auto i = 0; i < a.output().size(); ++i) {
             if(a.output(i) != b.output(i)) {
                 return a.output(i) < b.output(i);
             }
@@ -86,6 +89,11 @@ namespace instant {
     inline auto const& attribute_floats(node const& n,
                                         std::string const& attr_name) {
         return n.attribute<std::vector<float>>(attr_name);
+    }
+    inline auto attributes_for_2d_data_processing(node const& n) {
+        return std::make_tuple(attribute_ints(n, "strides"),
+                               attribute_ints(n, "kernel_shape"),
+                               attribute_ints(n, "pads"));
     }
 
     using graph = std::vector<std::set<node>>;
@@ -172,7 +180,7 @@ namespace instant {
                            std::set<std::string> const& parameter_name_set) {
         auto available_value_name_set = given_input_name_set;
         available_value_name_set.insert(parameter_name_set.begin(),
-                                           parameter_name_set.end());
+                                        parameter_name_set.end());
         instant::graph graph;
         while(!node_set.empty()) {
             std::set<node> next_node_set;
@@ -188,8 +196,8 @@ namespace instant {
                   available_value_name_set.end(),
                   std::back_inserter(unavailable_value_name_list));
                 if(unavailable_value_name_list.empty()) {
-                    next_available_value_name_set.insert(
-                      node.output().begin(), node.output().end());
+                    next_available_value_name_set.insert(node.output().begin(),
+                                                         node.output().end());
                     current_node_set.insert(node);
                 } else {
                     next_node_set.insert(node);

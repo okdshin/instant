@@ -3,7 +3,7 @@ add_executable(instant_test
     context.cpp
     graph.cpp
     onnx.cpp
-    #mkldnn.cpp
+    mkldnn.cpp
     #operator.cpp
     #node.cpp
 )

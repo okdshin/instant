@@ -20,10 +20,11 @@ namespace instant {
         TEST_F(GraphTest, attribute_access_test) {
             node n(op_type_t::max_pool, {"input"}, {"output"},
                  {{"strides", std::vector{2, 2}},
-                  {"pads", std::vector{0, 0}},
+                  {"pads", std::vector{0, 0, 0, 0}},
                   {"ksize", std::vector{3, 3}}});
-            auto const& strides = attribute_ints(n, "strides");
-            assert_eq_list(strides, std::vector{2, 2});
+            assert_eq_list(attribute_ints(n, "strides"), std::vector{2, 2});
+            assert_eq_list(attribute_ints(n, "pads"), std::vector{0, 0, 0, 0});
+            assert_eq_list(attribute_ints(n, "ksize"), std::vector{3, 3});
         }
 
     } // namespace

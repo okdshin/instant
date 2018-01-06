@@ -80,7 +80,7 @@ namespace instant {
             std::shared_ptr<void> data;
             if(d == instant::dtype_t::float_) {
                 using float_t =
-                  instant::dtype_t_to_type_t<instant::dtype_t::float_>;
+                  instant::dtype_to_type_t<instant::dtype_t::float_>;
                 data = std::unique_ptr<float_t[]>(new float_t[total_size]);
                 // TODO other format: float_data
                 assert(tensor.has_raw_data());
@@ -103,7 +103,11 @@ namespace instant {
         for(auto const& onnx_node : graph.node()) {
             std::unordered_map<std::string, attribute> attribute_table;
             for(auto const& attr : onnx_node.attribute()) {
-                if(attr.type() == onnx::AttributeProto_AttributeType_INT) {
+                if(attr.type() ==
+                   onnx::AttributeProto_AttributeType_UNDEFINED) {
+                    // do nothing
+                } else if(attr.type() ==
+                          onnx::AttributeProto_AttributeType_INT) {
                     attribute_table.insert(
                       {attr.name(), static_cast<int>(attr.i())}); // TODO int64
                 } else if(attr.type() ==
@@ -119,6 +123,11 @@ namespace instant {
                     attribute_table.insert(
                       {attr.name(), std::vector<float>(attr.floats().begin(),
                                                        attr.floats().end())});
+                } else {
+                    throw std::runtime_error(
+                      "Not implemented type: " +
+                      std::to_string(static_cast<int>(attr.type())) +
+                      " to load for: " + attr.name());
                 }
             }
             instant::node n(string_to_op_type(onnx_node.op_type()),
@@ -140,27 +149,17 @@ namespace instant {
           extract_node_set_from_onnx_graph(onnx_model.graph());
         auto parameter_name_set =
           extract_parameter_name_set(onnx_model.graph());
-        std::cout << "parameter_name_set" << std::endl;
-        for(auto const& parameter_name : parameter_name_set) {
-            std::cout << parameter_name << std::endl;
-        }
         auto needed_node_set =
           extract_needed_node_set(raw_node_set, required_output_name_set);
         auto needed_input_name_set =
           extract_needed_input_name_set(needed_node_set, parameter_name_set);
-        std::cout << "needed_input_name_set" << std::endl;
-        for(auto const& input_name : needed_input_name_set) {
-            std::cout << input_name << std::endl;
-        }
         auto needed_parameter_name_set = extract_needed_parameter_name_set(
           needed_node_set, needed_input_name_set);
-        std::cout << "here" << std::endl;
-        auto graph = make_graph(needed_node_set, needed_input_name_set, needed_parameter_name_set);
-        std::cout << "here" << std::endl;
+        auto graph = make_graph(needed_node_set, needed_input_name_set,
+                                needed_parameter_name_set);
         auto parameter_table = make_parameter_table_from_onnx_graph(
           onnx_model.graph(), needed_parameter_name_set);
-        std::cout << "here" << std::endl;
-        return std::make_tuple(graph, parameter_table);
+        return std::make_tuple(graph, parameter_table, needed_input_name_set);
     }
 
 } // namespace instant

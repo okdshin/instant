@@ -14,7 +14,7 @@ namespace instant {
         softmax
     };
 
-    inline auto op_type_to_string(op_type_t op_type) {
+    inline std::string op_type_to_string(op_type_t op_type) {
         if(op_type == op_type_t::conv) {
             return "Conv";
         }

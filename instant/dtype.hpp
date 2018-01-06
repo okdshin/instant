@@ -3,6 +3,7 @@
 #include <cassert>
 #include <climits>
 #include <cstdint>
+#include <exception>
 
 #include <mkldnn.hpp>
 
@@ -21,6 +22,14 @@ namespace instant {
         float_
         // TODO more types
     };
+
+    inline std::string dtype_to_string(dtype_t dtype) {
+        if(dtype == dtype_t::float_) {
+            return "float";
+        }
+        throw std::runtime_error("Not imaplemented dtype: " +
+                                 std::to_string(static_cast<int>(dtype)));
+    }
 
     /*
     inline auto
@@ -66,10 +75,10 @@ namespace instant {
     */
 
     template <dtype_t>
-    struct dtype_t_to_type {};
+    struct dtype_to_type {};
 
     template <>
-    struct dtype_t_to_type<dtype_t::float_> {
+    struct dtype_to_type<dtype_t::float_> {
         using type = float;
     };
     /*
@@ -104,7 +113,7 @@ namespace instant {
     */
 
     template <dtype_t d>
-    using dtype_t_to_type_t = typename dtype_t_to_type<d>::type;
+    using dtype_to_type_t = typename dtype_to_type<d>::type;
 
 } // namespace instant
 
