@@ -86,9 +86,14 @@ namespace instant {
         return n.attribute<std::vector<float>>(attr_name);
     }
     inline auto attributes_for_2d_data_processing(node const& n) {
+        // Workaround for onnx-chainer. see https://github.com/chainer/onnx-chainer/pull/11
+        auto pads = attribute_ints(n, "pads");
+        if(pads.size() == 2) {
+            pads = std::vector{pads[0], pads[1], pads[0], pads[1]};
+        }
         return std::make_tuple(attribute_ints(n, "strides"),
                                attribute_ints(n, "kernel_shape"),
-                               attribute_ints(n, "pads"));
+                               pads);
     }
 
     using graph = std::vector<std::set<node>>;

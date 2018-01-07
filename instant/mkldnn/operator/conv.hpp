@@ -1,5 +1,5 @@
-#ifndef INSTANT_MKLDNN_OPERATOR_CONV
-#define INSTANT_MKLDNN_OPERATOR_CONV
+#ifndef INSTANT_MKLDNN_OPERATOR_CONV_HPP
+#define INSTANT_MKLDNN_OPERATOR_CONV_HPP
 
 #include <optional>
 #include <set>
@@ -15,6 +15,7 @@
 #include <instant/utility.hpp>
 
 #include <instant/mkldnn/operator/common.hpp>
+#include <instant/mkldnn/utility.hpp>
 
 namespace instant::mkldnn_backend {
 
@@ -124,4 +125,4 @@ namespace instant::mkldnn_backend {
 
 } // namespace instant::mkldnn_backend
 
-#endif // INSTANT_OPERATOR_CONV
+#endif // INSTANT_OPERATOR_CONV_HPP
