@@ -44,6 +44,7 @@ namespace instant {
           find_value(variable_memory_table, node.input(0));
         auto const& input_memory = std::get<0>(input_memory_and_origin_format);
         auto input_dims = extract_dims(input_memory);
+        shape[0] = input_dims[0];
         auto output_dims = calc_reshaped_dims(input_dims, shape);
 
         auto const& output_name = node.output(0);
