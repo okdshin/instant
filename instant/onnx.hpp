@@ -103,23 +103,16 @@ namespace instant {
         for(auto const& onnx_node : graph.node()) {
             std::unordered_map<std::string, attribute> attribute_table;
             for(auto const& attr : onnx_node.attribute()) {
-                if(attr.type() ==
-                   onnx::AttributeProto_AttributeType_UNDEFINED) {
-                    // do nothing
-                } else if(attr.type() ==
-                          onnx::AttributeProto_AttributeType_INT) {
+                if(attr.has_i()) {
                     attribute_table.insert(
                       {attr.name(), static_cast<int>(attr.i())}); // TODO int64
-                } else if(attr.type() ==
-                          onnx::AttributeProto_AttributeType_FLOAT) {
+                } else if(attr.has_f()) {
                     attribute_table.insert({attr.name(), attr.f()});
-                } else if(attr.type() ==
-                          onnx::AttributeProto_AttributeType_INTS) {
+                } else if(attr.ints_size()) {
                     attribute_table.insert(
                       {attr.name(), std::vector<int>(attr.ints().begin(),
                                                      attr.ints().end())});
-                } else if(attr.type() ==
-                          onnx::AttributeProto_AttributeType_FLOATS) {
+                } else if(attr.floats_size()) {
                     attribute_table.insert(
                       {attr.name(), std::vector<float>(attr.floats().begin(),
                                                        attr.floats().end())});

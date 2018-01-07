@@ -25,7 +25,7 @@ namespace instant::mkldnn_backend {
         variable_memory_table,
       std::set<std::string> const& required_output_name_set,
       mkldnn::engine const& engine) {
-        std::cout << "make_conv_primitive" << std::endl;
+
         std::vector<mkldnn::primitive> net;
         std::unordered_map<std::string, mkldnn::memory> output_memory_table;
         std::unordered_map<std::string, array> output_table;
@@ -35,7 +35,6 @@ namespace instant::mkldnn_backend {
           attributes_for_2d_data_processing(node);
         std::vector<int> padding_l{pads[0], pads[2]};
         std::vector<int> padding_r{pads[1], pads[3]};
-        std::cout << "here" << std::endl;
 
         auto const& input_memory =
           find_value(variable_memory_table, node.input(0));

@@ -38,11 +38,6 @@ namespace instant {
 
         template <typename AttributeType>
         auto const& attribute(std::string const& attr_name) const {
-            std::cout << "--";
-            for(auto const& [name, value] : attribute_table_) {
-                std::cout << name << " ";
-            }
-            std::cout << "\n";
             return std::get<AttributeType>(
               find_value(attribute_table_, attr_name));
         }
