@@ -54,18 +54,18 @@ namespace instant {
     inline auto extract_parameter_name_set(onnx::GraphProto const& graph) {
         std::set<std::string> parameter_name_set;
         for(int i = 0; i < graph.initializer_size(); ++i) {
-            auto tensor = graph.initializer(i);
+            auto& tensor = graph.initializer(i);
             parameter_name_set.insert(tensor.name());
         }
         return parameter_name_set;
     }
 
     inline auto make_parameter_table_from_onnx_graph(
-      onnx::GraphProto const& graph,
+      onnx::GraphProto& graph,
       std::set<std::string> const& needed_parameter_name_set) {
         std::unordered_map<std::string, instant::array> parameter_table;
         for(int i = 0; i < graph.initializer_size(); ++i) {
-            auto tensor = graph.initializer(i);
+            auto& tensor = *graph.mutable_initializer(i);
             if(needed_parameter_name_set.find(tensor.name()) ==
                needed_parameter_name_set.end()) {
                 continue;
@@ -87,6 +87,7 @@ namespace instant {
                 assert(tensor.raw_data().length() == total_size * 4);
                 std::copy(tensor.raw_data().begin(), tensor.raw_data().end(),
                           static_cast<char*>(data.get()));
+                delete tensor.release_raw_data();
             } else {
                 throw onnx_load_error("Not implemented");
             }
@@ -98,8 +99,8 @@ namespace instant {
     }
 
     inline auto
-    extract_node_set_from_onnx_graph(onnx::GraphProto const& graph) {
-        std::set<node> node_set;
+    extract_node_list_from_onnx_graph(onnx::GraphProto const& graph) {
+        std::vector<node> node_list;
         for(auto const& onnx_node : graph.node()) {
             std::unordered_map<std::string, attribute> attribute_table;
             for(auto const& attr : onnx_node.attribute()) {
@@ -129,29 +130,30 @@ namespace instant {
                             std::vector<std::string>(onnx_node.output().begin(),
                                                      onnx_node.output().end()),
                             attribute_table);
-            node_set.insert(n);
+            node_list.push_back(n);
         }
-        return node_set;
+        return node_list;
     }
 
     inline auto
     load_onnx(std::string const& filename,
               std::set<std::string> const& required_output_name_set) {
         auto onnx_model = load_onnx_model(filename);
-        auto raw_node_set =
-          extract_node_set_from_onnx_graph(onnx_model.graph());
+        auto node_list = extract_node_list_from_onnx_graph(onnx_model.graph());
+        reconstruct_node_list(node_list, trim_dropout);
+        reconstruct_node_list(node_list, trim_reshape);
         auto parameter_name_set =
           extract_parameter_name_set(onnx_model.graph());
-        auto needed_node_set =
-          extract_needed_node_set(raw_node_set, required_output_name_set);
+        auto needed_node_list =
+          extract_needed_node_list(node_list, required_output_name_set);
         auto needed_input_name_set =
-          extract_needed_input_name_set(needed_node_set, parameter_name_set);
+          extract_needed_input_name_set(needed_node_list, parameter_name_set);
         auto needed_parameter_name_set = extract_needed_parameter_name_set(
-          needed_node_set, needed_input_name_set);
-        auto graph = make_graph(needed_node_set, needed_input_name_set,
+          needed_node_list, needed_input_name_set);
+        auto graph = make_graph(needed_node_list, needed_input_name_set,
                                 needed_parameter_name_set);
         auto parameter_table = make_parameter_table_from_onnx_graph(
-          onnx_model.graph(), needed_parameter_name_set);
+          *onnx_model.mutable_graph(), needed_parameter_name_set);
         return std::make_tuple(graph, parameter_table, needed_input_name_set);
     }
 

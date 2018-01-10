@@ -47,8 +47,8 @@ namespace instant {
 
         TEST_F(MKLDNNTest, run_onnx_model) {
             std::set<std::string> required_output_name_set{"140326200803680"};
-            auto[graph, param_table, input_name_set] = load_onnx(
-              "../data/VGG16.onnx", required_output_name_set);
+            auto[graph, param_table, input_name_set] =
+              load_onnx("../data/VGG16.onnx", required_output_name_set);
             if(input_name_set.size() != 1) {
                 throw std::runtime_error("VGG16 data is invalid");
             }
@@ -59,8 +59,14 @@ namespace instant {
             constexpr auto width = 224;
             std::vector<int> input_dims{batch_size, channel_num, height, width};
             array input_arr(dtype_t::float_, input_dims);
-            auto nets = mkldnn_backend::make_nets(
-              graph, param_table, {{input_name, input_arr},}, required_output_name_set);
+            auto[nets, variable_memory_table, temp_memory_list, output_table] =
+              mkldnn_backend::make_nets(graph, param_table,
+                                        {
+                                          {input_name, input_arr},
+                                        },
+                                        required_output_name_set);
+            mkldnn::stream(mkldnn::stream::kind::eager).submit(nets).wait();
+            std::cout << output_table.size() << std::endl;
         }
 
     } // namespace

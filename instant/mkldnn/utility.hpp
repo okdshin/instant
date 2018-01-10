@@ -21,13 +21,18 @@ namespace instant::mkldnn_backend {
         throw std::runtime_error("Not implemented: " + dtype_to_string(dtype));
     }
 
-    inline auto array_to_memory(array const& arr, mkldnn::memory::format format,
+    inline auto array_to_memory(array const& arr, std::vector<int> const& dims, mkldnn::memory::format format,
                                 mkldnn::engine const& engine) {
-        return mkldnn::memory({{{arr.dims()},
+        return mkldnn::memory({{{dims},
                                 dtype_to_mkldnn_memory_data_type(arr.dtype()),
                                 format},
                                engine},
                               const_cast<void*>(arr.data()));
+    }
+
+    inline auto array_to_memory(array const& arr, mkldnn::memory::format format,
+                                mkldnn::engine const& engine) {
+        return array_to_memory(arr, arr.dims(), format, engine);
     }
 
 } // namespace instant::mkldnn_backend

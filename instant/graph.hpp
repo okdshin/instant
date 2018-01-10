@@ -1,6 +1,7 @@
 #ifndef INSTANT_GRAPH_HPP
 #define INSTANT_GRAPH_HPP
 
+#include <functional>
 #include <set>
 #include <unordered_map>
 #include <variant>
@@ -30,11 +31,13 @@ namespace instant {
             return input_name_list_.at(index);
         }
         auto const& input() const { return input_name_list_; }
+        auto& input() { return input_name_list_; }
 
         auto const& output(int index) const {
             return output_name_list_.at(index);
         }
         auto const& output() const { return output_name_list_; }
+        auto& output() { return output_name_list_; }
 
         template <typename AttributeType>
         auto const& attribute(std::string const& attr_name) const {
@@ -86,14 +89,14 @@ namespace instant {
         return n.attribute<std::vector<float>>(attr_name);
     }
     inline auto attributes_for_2d_data_processing(node const& n) {
-        // Workaround for onnx-chainer. see https://github.com/chainer/onnx-chainer/pull/11
+        // Workaround for onnx-chainer. see
+        // https://github.com/chainer/onnx-chainer/pull/11
         auto pads = attribute_ints(n, "pads");
         if(pads.size() == 2) {
             pads = std::vector{pads[0], pads[1], pads[0], pads[1]};
         }
         return std::make_tuple(attribute_ints(n, "strides"),
-                               attribute_ints(n, "kernel_shape"),
-                               pads);
+                               attribute_ints(n, "kernel_shape"), pads);
     }
 
     using graph = std::vector<std::set<node>>;
@@ -147,15 +150,15 @@ namespace instant {
     }
 
     inline auto
-    extract_needed_node_set(std::set<node> const& node_set,
-                            std::set<std::string> required_output_name_set) {
-        std::set<node> needed_node_set;
+    extract_needed_node_list(std::vector<node> const& node_list,
+                             std::set<std::string> required_output_name_set) {
+        std::vector<node> needed_node_list;
         while(!required_output_name_set.empty()) {
             std::set<std::string> next_required_output_name_set;
             for(auto const& required_output_name : required_output_name_set) {
                 // Search node that issues required output
                 auto needed_node_iter = std::find_if(
-                  node_set.begin(), node_set.end(),
+                  node_list.begin(), node_list.end(),
                   [&required_output_name](auto const& node) {
                       return std::any_of(
                         node.output().begin(), node.output().end(),
@@ -163,8 +166,8 @@ namespace instant {
                             return output_name == required_output_name;
                         });
                   });
-                if(needed_node_iter != node_set.end()) {
-                    needed_node_set.insert(*needed_node_iter);
+                if(needed_node_iter != node_list.end()) {
+                    needed_node_list.push_back(*needed_node_iter);
                     next_required_output_name_set.insert(
                       needed_node_iter->input().begin(),
                       needed_node_iter->input().end());
@@ -172,12 +175,13 @@ namespace instant {
             }
             required_output_name_set = next_required_output_name_set;
         }
-        return needed_node_set;
+        return needed_node_list;
     }
 
-    inline auto make_graph(std::set<node> node_set,
+    inline auto make_graph(std::vector<node> node_list,
                            std::set<std::string> const& given_input_name_set,
                            std::set<std::string> const& parameter_name_set) {
+        std::set<node> node_set(node_list.begin(), node_list.end());
         auto available_value_name_set = given_input_name_set;
         available_value_name_set.insert(parameter_name_set.begin(),
                                         parameter_name_set.end());
@@ -211,10 +215,10 @@ namespace instant {
     }
 
     inline auto
-    extract_needed_input_name_set(std::set<node> const& node_set,
+    extract_needed_input_name_set(std::vector<node> const& node_list,
                                   std::set<std::string> parameter_name_set) {
         std::set<std::string> input_name_set;
-        for(auto const& node : node_set) {
+        for(auto const& node : node_list) {
             input_name_set.insert(node.input().begin(), node.input().end());
             parameter_name_set.insert(node.output().begin(),
                                       node.output().end());
@@ -228,10 +232,10 @@ namespace instant {
     }
 
     inline auto extract_needed_parameter_name_set(
-      std::set<node> const& node_set,
+      std::vector<node> const& node_list,
       std::set<std::string> given_input_name_set) {
         std::set<std::string> input_name_set;
-        for(auto const& node : node_set) {
+        for(auto const& node : node_list) {
             input_name_set.insert(node.input().begin(), node.input().end());
             given_input_name_set.insert(node.output().begin(),
                                         node.output().end());
@@ -288,6 +292,84 @@ namespace instant {
             }
         }
         return variable_dims_table;
+    }
+
+    inline auto
+    extract_node_ref_that_has_specific_output(std::vector<node>& node_list,
+                                              std::string const& output_name) {
+        for(auto& node : node_list) {
+            auto node_iter = std::find(node.output().begin(),
+                                       node.output().end(), output_name);
+            if(node_iter != node.output().end()) {
+                return std::ref(node);
+            }
+        }
+        throw std::runtime_error("No node has output named: " + output_name);
+    }
+
+    inline auto extract_node_ref_list_that_has_specific_input(
+      std::vector<node>& node_list, std::string const& input_name) {
+        std::vector<std::reference_wrapper<node>> node_ref_list;
+        for(auto& node : node_list) {
+            auto input_iter =
+              std::find(node.input().begin(), node.input().end(), input_name);
+            if(input_iter != node.input().end()) {
+                node_ref_list.push_back(std::ref(node));
+            }
+        }
+        return node_ref_list;
+    }
+
+    template <typename Visitor>
+    auto reconstruct_node_list(std::vector<node>& node_list, Visitor visitor) {
+        auto node_list_for_loop = node_list;
+        for(auto& node : node_list_for_loop) {
+            visitor(node_list, node);
+        }
+    }
+
+    inline auto trim_node(std::vector<node>& node_list,
+                          instant::node const& node) {
+        auto next_node_ref_list = extract_node_ref_list_that_has_specific_input(
+          node_list, node.output(0));
+        for(instant::node& next_node : next_node_ref_list) {
+            auto input_name_iter =
+              std::find(next_node.input().begin(), next_node.input().end(),
+                        node.output(0));
+            assert(input_name_iter != next_node.input().end());
+            *input_name_iter = node.input(0);
+        }
+    }
+
+    inline auto trim_dropout(std::vector<node>& node_list,
+                             instant::node const& node) {
+        if(node.op_type() == op_type_t::dropout) {
+            trim_node(node_list, node);
+        }
+    }
+
+    inline auto trim_reshape(std::vector<node>& node_list,
+                             instant::node const& node) {
+        if(node.op_type() == op_type_t::reshape) {
+            instant::node& prev_node =
+              extract_node_ref_that_has_specific_output(node_list,
+                                                        node.input(0));
+            std::cout << op_type_to_string(prev_node.op_type()) << std::endl;
+            //TODO Relu
+            if(prev_node.op_type() == op_type_t::conv ||
+               prev_node.op_type() == op_type_t::max_pool) {
+                auto next_node_ref_set =
+                  extract_node_ref_list_that_has_specific_input(node_list,
+                                                                node.output(0));
+                if(std::all_of(next_node_ref_set.begin(),
+                               next_node_ref_set.end(),
+                               [](instant::node const& node) {
+                                   return node.op_type() == op_type_t::fc;
+                               })) { // TODO check shape
+                    trim_node(node_list, node);
+                }
+            }
+        }
     }
 
 } // namespace instant

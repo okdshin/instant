@@ -32,6 +32,13 @@ namespace instant::mkldnn_backend {
       mkldnn::engine const& engine,
       OpPrimitiveGenerator op_primitive_generator) {
 
+        for(int i = 0; i < output_dims.size(); ++i) {
+            assert(output_dims[i] ==
+                   const_cast<mkldnn::memory::primitive_desc&>(output_pd)
+                     .desc()
+                     .data.dims[i]);
+        }
+
         std::optional<mkldnn::memory> output_memory_opt;
         std::optional<instant::array> output_arr_opt;
 

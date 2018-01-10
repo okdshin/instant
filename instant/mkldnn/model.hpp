@@ -41,17 +41,18 @@ namespace instant::mkldnn_backend {
           {"BatchNormalization", make_batch_norm_primitive});
         */
         primitive_factory_table.insert({op_type_t::conv, make_conv_primitive});
-        primitive_factory_table.insert({op_type_t::relu, make_relu_primitive});
+        primitive_factory_table.insert({op_type_t::fc, make_fc_primitive});
         primitive_factory_table.insert(
           {op_type_t::max_pool, make_max_pool_primitive});
+        primitive_factory_table.insert({op_type_t::relu, make_relu_primitive});
+        primitive_factory_table.insert(
+          {op_type_t::softmax, make_softmax_primitive});
         /*
         primitive_factory_table.insert({"Dropout", make_dropout_primitive});
         primitive_factory_table.insert({"Elu", make_elu_primitive});
-        primitive_factory_table.insert({"FC", make_fc_primitive});
         primitive_factory_table.insert(
           {"LeakyRelu", make_leaky_relu_primitive});
         primitive_factory_table.insert({"Reshape", make_reshape_primitive});
-        primitive_factory_table.insert({"Softmax", make_softmax_primitive});
         // primitive_factory_table.insert({"Sqrt", make_sqrt_primitive});
         primitive_factory_table.insert({"Tanh", make_tanh_primitive});
         // TODO other primitives
