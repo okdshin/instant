@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/okdshin/instant.svg?branch=master)](https://travis-ci.org/okdshin/instant)
 
+**WARNING: Instant is deprecated. Please use [Menoh](https://github.com/pfnet-research/menoh) instead.**
+
 Instant is DNN inference library written in C++.
 
 Instant is released under MIT Licence.
