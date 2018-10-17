@@ -1,3 +1,7 @@
+# **WARNING: Instant is deprecated. Please use [Menoh](https://github.com/pfnet-research/menoh) instead.**
+# **WARNING: Instant is deprecated. Please use [Menoh](https://github.com/pfnet-research/menoh) instead.**
+# **WARNING: Instant is deprecated. Please use [Menoh](https://github.com/pfnet-research/menoh) instead.**
+
 # Instant
 
 [![Build Status](https://travis-ci.org/okdshin/instant.svg?branch=master)](https://travis-ci.org/okdshin/instant)
